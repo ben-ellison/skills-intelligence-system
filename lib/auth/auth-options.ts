@@ -11,7 +11,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  debug: false,
+  debug: true,
   callbacks: {
     async signIn({ user, account, profile }) {
       // Sync user to Supabase on first login or update
