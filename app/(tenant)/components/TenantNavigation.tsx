@@ -264,29 +264,62 @@ export default function TenantNavigation({
               {groups.map((group) => {
                 if (group.id === 'home' || group.modules.length === 0) return null;
 
-                // Single module groups (AAF, QAR, Funding) - don't make collapsible
-                const isSingleModule = group.modules.length === 1;
+                // Groups with 2 or fewer modules - not collapsible
+                const isSmallGroup = group.modules.length <= 2;
 
-                if (isSingleModule) {
-                  const module = group.modules[0];
-                  const isActive = pathname?.startsWith(`/modules/${module.name}`);
+                if (isSmallGroup) {
+                  // Single module - direct link
+                  if (group.modules.length === 1) {
+                    const module = group.modules[0];
+                    const isActive = pathname?.startsWith(`/modules/${module.name}`);
+                    return (
+                      <Link
+                        key={group.id}
+                        href={`/modules/${module.name}`}
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
+                          isActive
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {group.icon}
+                        {sidebarOpen && <span className="ml-3">{group.name}</span>}
+                      </Link>
+                    );
+                  }
+
+                  // Two modules - show both without collapse
                   return (
-                    <Link
-                      key={group.id}
-                      href={`/modules/${module.name}`}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
-                        isActive
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {group.icon}
-                      {sidebarOpen && <span className="ml-3">{group.name}</span>}
-                    </Link>
+                    <div key={group.id} className="mt-2">
+                      <div className="flex items-center px-3 py-2 text-sm font-medium text-slate-700">
+                        {group.icon}
+                        {sidebarOpen && <span className="ml-3">{group.name}</span>}
+                      </div>
+                      {sidebarOpen && (
+                        <div className="ml-4 mt-1 space-y-1">
+                          {group.modules.map((module) => {
+                            const isActive = pathname?.startsWith(`/modules/${module.name}`);
+                            return (
+                              <Link
+                                key={module.id}
+                                href={`/modules/${module.name}`}
+                                className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                                  isActive
+                                    ? 'bg-purple-100 text-purple-700 font-medium'
+                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                }`}
+                              >
+                                {module.display_name}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 }
 
-                // Multi-module groups - collapsible
+                // Multi-module groups (3+) - collapsible
                 return (
                   <div key={group.id} className="mt-2">
                     <button
