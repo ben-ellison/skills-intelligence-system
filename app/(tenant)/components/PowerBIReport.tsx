@@ -61,9 +61,9 @@ export default function PowerBIReport({
       return;
     }
 
-    // Load PowerBI JavaScript library from Microsoft CDN
+    // Load PowerBI JavaScript library from jsDelivr CDN
     const script = document.createElement('script');
-    script.src = 'https://cdn.powerbi.com/lib/powerbi.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js';
     script.async = false; // Load synchronously to ensure it's ready
     script.type = 'text/javascript';
 
