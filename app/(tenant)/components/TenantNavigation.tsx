@@ -82,6 +82,16 @@ export default function TenantNavigation({
         expanded: true,
       },
       {
+        id: 'leadership',
+        name: 'Senior Leadership',
+        icon: <User className="w-5 h-5" />,
+        modules: moduleList.filter(m =>
+          m.name.includes('senior-leader') ||
+          m.display_name.toLowerCase().includes('senior')
+        ),
+        expanded: true,
+      },
+      {
         id: 'operations',
         name: 'Operations',
         icon: <Wrench className="w-5 h-5" />,
@@ -136,16 +146,6 @@ export default function TenantNavigation({
         expanded: true,
       },
       {
-        id: 'funding',
-        name: 'Funding Information',
-        icon: <BarChart3 className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('funding') ||
-          m.display_name.toLowerCase().includes('funding')
-        ),
-        expanded: true,
-      },
-      {
         id: 'qar',
         name: 'QAR Information',
         icon: <BarChart3 className="w-5 h-5" />,
@@ -157,12 +157,12 @@ export default function TenantNavigation({
         expanded: true,
       },
       {
-        id: 'leadership',
-        name: 'Senior Leadership',
-        icon: <User className="w-5 h-5" />,
+        id: 'funding',
+        name: 'Funding Information',
+        icon: <BarChart3 className="w-5 h-5" />,
         modules: moduleList.filter(m =>
-          m.name.includes('senior-leader') ||
-          m.display_name.toLowerCase().includes('senior')
+          m.name.includes('funding') ||
+          m.display_name.toLowerCase().includes('funding')
         ),
         expanded: true,
       },
