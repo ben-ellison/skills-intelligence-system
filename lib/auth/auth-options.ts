@@ -5,9 +5,9 @@ import { createAdminClient } from '@/lib/supabase/server';
 export const authOptions: NextAuthOptions = {
   providers: [
     Auth0Provider({
-      clientId: process.env.AUTH0_CLIENT_ID!,
+      clientId: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID || process.env.AUTH0_CLIENT_ID!,
       clientSecret: process.env.AUTH0_CLIENT_SECRET!,
-      issuer: process.env.AUTH0_ISSUER_BASE_URL,
+      issuer: process.env.AUTH0_ISSUER_BASE_URL || `https://${process.env.NEXT_PUBLIC_AUTH0_DOMAIN}`,
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
