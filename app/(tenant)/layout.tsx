@@ -35,9 +35,8 @@ export default async function TenantLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <TenantNavigation session={session} />
-      <main>{children}</main>
-    </div>
+    <TenantNavigation session={session}>
+      {children}
+    </TenantNavigation>
   );
 }
