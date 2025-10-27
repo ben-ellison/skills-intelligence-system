@@ -51,10 +51,12 @@ export default function TenantNavigation({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [groups, setGroups] = useState<ModuleGroup[]>([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [organizationName, setOrganizationName] = useState<string>('');
   const pathname = usePathname();
 
   useEffect(() => {
     fetchModules();
+    fetchOrganizationName();
   }, []);
 
   const fetchModules = async () => {
@@ -69,6 +71,19 @@ export default function TenantNavigation({
       console.error('Error fetching modules:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrganizationName = async () => {
+    try {
+      const response = await fetch('/api/tenant/organization');
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizationName(data.name || 'Dashboard');
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error);
+      setOrganizationName('Dashboard');
     }
   };
 
@@ -206,11 +221,11 @@ export default function TenantNavigation({
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
           {sidebarOpen ? (
             <Link href="/modules" className="text-lg font-bold text-purple-600">
-              Skills Intelligence
+              Skills Intelligence System
             </Link>
           ) : (
             <Link href="/modules" className="text-lg font-bold text-purple-600">
-              SI
+              SIS
             </Link>
           )}
           <button
@@ -242,12 +257,37 @@ export default function TenantNavigation({
                 }`}
               >
                 <Home className="w-5 h-5 mr-3" />
-                {sidebarOpen && <span>Dashboard</span>}
+                {sidebarOpen && <span>{organizationName || 'Home'}</span>}
               </Link>
 
               {/* Module Groups */}
-              {groups.map((group) => (
-                group.id !== 'home' && group.modules.length > 0 && (
+              {groups.map((group) => {
+                if (group.id === 'home' || group.modules.length === 0) return null;
+
+                // Single module groups (AAF, QAR, Funding) - don't make collapsible
+                const isSingleModule = group.modules.length === 1;
+
+                if (isSingleModule) {
+                  const module = group.modules[0];
+                  const isActive = pathname?.startsWith(`/modules/${module.name}`);
+                  return (
+                    <Link
+                      key={group.id}
+                      href={`/modules/${module.name}`}
+                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
+                        isActive
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {group.icon}
+                      {sidebarOpen && <span className="ml-3">{group.name}</span>}
+                    </Link>
+                  );
+                }
+
+                // Multi-module groups - collapsible
+                return (
                   <div key={group.id} className="mt-2">
                     <button
                       onClick={() => toggleGroup(group.id)}
@@ -285,8 +325,8 @@ export default function TenantNavigation({
                       </div>
                     )}
                   </div>
-                )
-              ))}
+                );
+              })}
             </div>
           )}
         </nav>
@@ -322,7 +362,7 @@ export default function TenantNavigation({
         {/* Top Bar */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
           <h1 className="text-xl font-semibold text-slate-900">
-            {modules.find(m => pathname?.startsWith(`/modules/${m.name}`))?.display_name || 'Dashboard'}
+            {modules.find(m => pathname?.startsWith(`/modules/${m.name}`))?.display_name || organizationName || 'Dashboard'}
           </h1>
 
           <div className="flex items-center space-x-4">
