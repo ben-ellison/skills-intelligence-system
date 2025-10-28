@@ -8,6 +8,7 @@ interface PowerBIReportProps {
   reportId: string;
   workspaceId: string;
   reportName: string;
+  pageName?: string | null; // Optional: specific page to navigate to
 }
 
 interface ReportPage {
@@ -20,6 +21,7 @@ export default function PowerBIReport({
   reportId,
   workspaceId,
   reportName,
+  pageName,
 }: PowerBIReportProps) {
   const [embedUrl, setEmbedUrl] = useState<string>('');
   const [accessToken, setAccessToken] = useState<string>('');
@@ -138,10 +140,27 @@ export default function PowerBIReport({
 
           setPages(pageList);
 
-          // Set the active page
-          const active = pageList.find(p => p.isActive);
-          if (active) {
-            setActivePage(active.name);
+          // If a specific page was requested, navigate to it
+          if (pageName) {
+            const targetPage = reportPages.find((page: any) => page.name === pageName);
+            if (targetPage) {
+              await targetPage.setActive();
+              setActivePage(pageName);
+              console.log('Navigated to specified page:', pageName);
+            } else {
+              console.warn('Specified page not found:', pageName);
+              // Fall back to active page
+              const active = pageList.find(p => p.isActive);
+              if (active) {
+                setActivePage(active.name);
+              }
+            }
+          } else {
+            // No specific page requested, use the active page
+            const active = pageList.find(p => p.isActive);
+            if (active) {
+              setActivePage(active.name);
+            }
           }
         } catch (err) {
           console.error('Error getting pages:', err);
