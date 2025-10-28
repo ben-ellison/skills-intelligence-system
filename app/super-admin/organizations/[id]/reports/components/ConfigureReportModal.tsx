@@ -162,7 +162,7 @@ export default function ConfigureReportModal({
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00e5c0] mx-auto"></div>
               <p className="mt-2 text-sm text-gray-600">Loading configuration...</p>
             </div>
           ) : (
@@ -192,7 +192,7 @@ export default function ConfigureReportModal({
                         type="checkbox"
                         checked={selectedModules.includes(module.id)}
                         onChange={() => toggleModule(module.id)}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-[#00e5c0] focus:ring-[#00e5c0] border-gray-300 rounded"
                       />
                       <div className="ml-3">
                         <span className="text-sm font-medium text-gray-900">
@@ -231,7 +231,7 @@ export default function ConfigureReportModal({
                         type="checkbox"
                         checked={selectedRoles.includes(role.id)}
                         onChange={() => toggleRole(role.id)}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-[#00e5c0] focus:ring-[#00e5c0] border-gray-300 rounded"
                       />
                       <div className="ml-3">
                         <span className="text-sm font-medium text-gray-900">
@@ -261,7 +261,7 @@ export default function ConfigureReportModal({
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center"
+            className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] disabled:opacity-50 flex items-center"
           >
             {saving ? (
               <>

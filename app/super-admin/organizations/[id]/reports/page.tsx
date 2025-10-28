@@ -150,7 +150,7 @@ export default function OrganizationReportsPage({
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5c0] mx-auto"></div>
           <p className="mt-4 text-slate-600">Loading...</p>
         </div>
       </div>
@@ -230,7 +230,7 @@ export default function OrganizationReportsPage({
             </div>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
             >
               + Add Report
             </button>
@@ -250,7 +250,7 @@ export default function OrganizationReportsPage({
                     type="text"
                     value={newReport.powerbiReportId}
                     onChange={e => setNewReport({ ...newReport, powerbiReportId: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
                     placeholder="e.g., 12345678-1234-1234-1234-123456789abc"
                   />
                   <p className="text-xs text-slate-500 mt-1">
@@ -266,7 +266,7 @@ export default function OrganizationReportsPage({
                     type="text"
                     value={newReport.powerbiReportName}
                     onChange={e => setNewReport({ ...newReport, powerbiReportName: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                     placeholder="e.g., Skills Coach V1.0 Release"
                   />
                   <p className="text-xs text-slate-500 mt-1">
@@ -277,7 +277,7 @@ export default function OrganizationReportsPage({
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa]"
                   >
                     Add Report
                   </button>

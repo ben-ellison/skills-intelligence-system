@@ -25,7 +25,7 @@ export default async function TenantLayout({
           </p>
           <a
             href="/super-admin"
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 inline-block"
+            className="px-6 py-3 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] inline-block"
           >
             Go to Super Admin Portal
           </a>

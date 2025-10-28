@@ -35,7 +35,7 @@ export default function ReportsPageWrapper({ initialReports }: ReportsPageWrappe
   const [editingReport, setEditingReport] = useState<PowerBIReport | null>(null);
 
   const categoryColors: Record<string, string> = {
-    'senior_leader': 'bg-purple-100 text-purple-700',
+    'senior_leader': 'bg-[#e6ffff] text-[#0eafaa]',
     'operations': 'bg-blue-100 text-blue-700',
     'quality': 'bg-green-100 text-green-700',
     'sales': 'bg-orange-100 text-orange-700',
@@ -79,7 +79,7 @@ export default function ReportsPageWrapper({ initialReports }: ReportsPageWrappe
               </Link>
               <button
                 onClick={handleAddReport}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
               >
                 + Add Report
               </button>
@@ -105,7 +105,7 @@ export default function ReportsPageWrapper({ initialReports }: ReportsPageWrappe
                 </p>
                 <button
                   onClick={handleAddReport}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="px-6 py-3 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
                 >
                   + Add Your First Report
                 </button>
@@ -272,7 +272,7 @@ function ReportModal({
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
               placeholder="e.g., APTEM-BKSB-HUBSPOT - Operations Leader v1.2"
               required
             />
@@ -290,7 +290,7 @@ function ReportModal({
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
               placeholder="Brief description of what this report shows"
               rows={3}
             />
@@ -304,7 +304,7 @@ function ReportModal({
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                 required
               >
                 <option value="general">General</option>
@@ -323,7 +323,7 @@ function ReportModal({
                 type="text"
                 value={formData.version}
                 onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                 placeholder="1.0"
               />
             </div>
@@ -337,7 +337,7 @@ function ReportModal({
               type="text"
               value={formData.powerbiReportId}
               onChange={(e) => setFormData({ ...formData, powerbiReportId: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               required
             />
@@ -354,7 +354,7 @@ function ReportModal({
               type="text"
               value={formData.powerbiWorkspaceId}
               onChange={(e) => setFormData({ ...formData, powerbiWorkspaceId: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               required
             />
@@ -371,7 +371,7 @@ function ReportModal({
               type="text"
               value={formData.powerbiDatasetId}
               onChange={(e) => setFormData({ ...formData, powerbiDatasetId: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (optional)"
             />
           </div>
@@ -382,7 +382,7 @@ function ReportModal({
               id="isActive"
               checked={formData.isActive}
               onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              className="mr-2 text-purple-600 focus:ring-purple-500"
+              className="mr-2 text-[#00e5c0] focus:ring-[#00e5c0]"
             />
             <label htmlFor="isActive" className="text-sm text-slate-700">
               Report is active and available for assignment
@@ -401,7 +401,7 @@ function ReportModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : report ? 'Update Report' : 'Add Report'}
             </button>

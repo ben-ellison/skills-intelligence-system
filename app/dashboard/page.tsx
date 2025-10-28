@@ -53,7 +53,7 @@ export default async function DashboardPage() {
               </p>
               <p className="text-slate-700">
                 <span className="font-semibold">Role:</span>{' '}
-                {isSuperAdmin && <span className="text-purple-600 font-semibold">Super Admin</span>}
+                {isSuperAdmin && <span className="text-[#00e5c0] font-semibold">Super Admin</span>}
                 {!isSuperAdmin && isTenantAdmin && <span className="text-blue-600 font-semibold">Tenant Admin</span>}
                 {!isSuperAdmin && !isTenantAdmin && <span className="text-slate-600">User</span>}
               </p>
@@ -75,13 +75,13 @@ export default async function DashboardPage() {
               <h3 className="text-lg font-semibold text-slate-800 mb-3">
                 Super Admin Access
               </h3>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <p className="text-purple-800 mb-4">
+              <div className="bg-[#e6ffff] border border-[#00f9e3] rounded-lg p-4">
+                <p className="text-[#033c3a] mb-4">
                   You have full platform access as a Super Admin
                 </p>
                 <Link
                   href="/super-admin"
-                  className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="inline-block px-6 py-3 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
                 >
                   Open Super Admin Portal
                 </Link>

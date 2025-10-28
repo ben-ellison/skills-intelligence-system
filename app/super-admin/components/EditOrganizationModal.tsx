@@ -194,7 +194,7 @@ export default function EditOrganizationModal({
                     type="text"
                     value={formData.powerbiWorkspaceId}
                     onChange={e => setFormData({ ...formData, powerbiWorkspaceId: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
                     placeholder="e.g., 12345678-1234-1234-1234-123456789abc"
                     disabled={isSubmitting}
                   />
@@ -211,7 +211,7 @@ export default function EditOrganizationModal({
                     type="text"
                     value={formData.powerbiWorkspaceName}
                     onChange={e => setFormData({ ...formData, powerbiWorkspaceName: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                     placeholder="e.g., fws_demo1_prod"
                     disabled={isSubmitting}
                   />
@@ -235,7 +235,7 @@ export default function EditOrganizationModal({
                     type="text"
                     value={formData.billingContactName}
                     onChange={e => setFormData({ ...formData, billingContactName: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                     placeholder="John Smith"
                     disabled={isSubmitting}
                   />
@@ -249,7 +249,7 @@ export default function EditOrganizationModal({
                     type="email"
                     value={formData.billingEmail}
                     onChange={e => setFormData({ ...formData, billingEmail: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                     placeholder="billing@example.com"
                     disabled={isSubmitting}
                   />
@@ -272,7 +272,7 @@ export default function EditOrganizationModal({
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>

@@ -220,11 +220,11 @@ export default function TenantNavigation({
         {/* Logo/Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
           {sidebarOpen ? (
-            <Link href="/modules" className="text-lg font-bold text-purple-600">
+            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
               Skills Intelligence System
             </Link>
           ) : (
-            <Link href="/modules" className="text-lg font-bold text-purple-600">
+            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
               SIS
             </Link>
           )}
@@ -252,7 +252,7 @@ export default function TenantNavigation({
                 href="/modules"
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   pathname === '/modules'
-                    ? 'bg-purple-100 text-purple-700'
+                    ? 'bg-[#e6ffff] text-[#033c3a]'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
@@ -278,7 +278,7 @@ export default function TenantNavigation({
                         href={`/modules/${module.name}`}
                         className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
                           isActive
-                            ? 'bg-purple-100 text-purple-700'
+                            ? 'bg-[#e6ffff] text-[#0eafaa]'
                             : 'text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -305,7 +305,7 @@ export default function TenantNavigation({
                                 href={`/modules/${module.name}`}
                                 className={`block px-3 py-2 text-sm rounded-md transition-colors ${
                                   isActive
-                                    ? 'bg-purple-100 text-purple-700 font-medium'
+                                    ? 'bg-[#e6ffff] text-[#0eafaa] font-medium'
                                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                 }`}
                               >
@@ -347,7 +347,7 @@ export default function TenantNavigation({
                               href={`/modules/${module.name}`}
                               className={`block px-3 py-2 text-sm rounded-md transition-colors ${
                                 isActive
-                                  ? 'bg-purple-100 text-purple-700 font-medium'
+                                  ? 'bg-[#e6ffff] text-[#033c3a] font-medium'
                                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                               }`}
                             >
@@ -411,7 +411,7 @@ export default function TenantNavigation({
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="flex items-center space-x-2 p-2 rounded-md hover:bg-slate-100 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-medium">
+                <div className="w-8 h-8 rounded-full bg-[#00e5c0] text-[#0a2929] flex items-center justify-center text-sm font-medium">
                   {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
                 </div>
                 <span className="text-sm font-medium text-slate-700">

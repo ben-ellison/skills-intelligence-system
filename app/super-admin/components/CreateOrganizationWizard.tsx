@@ -184,7 +184,7 @@ export default function CreateOrganizationWizard({
                   value=""
                   checked={selectedId === ''}
                   onChange={() => onChange('')}
-                  className="mr-3 text-purple-600 focus:ring-purple-500"
+                  className="mr-3 text-[#00e5c0] focus:ring-[#00e5c0]"
                 />
                 <span className="text-slate-600">None</span>
               </label>
@@ -194,7 +194,7 @@ export default function CreateOrganizationWizard({
                 key={provider.id}
                 className={`flex items-start p-3 border-2 rounded-lg cursor-pointer transition-all ${
                   selectedId === provider.id
-                    ? 'border-purple-600 bg-purple-50'
+                    ? 'border-[#00e5c0] bg-[#e6ffff]'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
@@ -204,7 +204,7 @@ export default function CreateOrganizationWizard({
                   value={provider.id}
                   checked={selectedId === provider.id}
                   onChange={() => onChange(provider.id)}
-                  className="mt-1 mr-3 text-purple-600 focus:ring-purple-500"
+                  className="mt-1 mr-3 text-[#00e5c0] focus:ring-[#00e5c0]"
                 />
                 <div className="flex-1">
                   <div className="font-semibold text-slate-900">{provider.display_name}</div>
@@ -247,7 +247,7 @@ export default function CreateOrganizationWizard({
               <div
                 key={s}
                 className={`h-2 flex-1 rounded ${
-                  s <= step ? 'bg-purple-600' : 'bg-slate-200'
+                  s <= step ? 'bg-[#00e5c0]' : 'bg-slate-200'
                 }`}
               />
             ))}
@@ -282,7 +282,7 @@ export default function CreateOrganizationWizard({
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                   placeholder="e.g., Acme Training Ltd"
                 />
               </div>
@@ -296,7 +296,7 @@ export default function CreateOrganizationWizard({
                     type="text"
                     value={formData.subdomain}
                     onChange={e => setFormData({ ...formData, subdomain: e.target.value.toLowerCase() })}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                     placeholder="acme"
                   />
                   <span className="text-slate-600 text-sm">.skillsintelligencesystem.co.uk</span>
@@ -371,7 +371,7 @@ export default function CreateOrganizationWizard({
                   type="text"
                   value={formData.powerbiWorkspaceId}
                   onChange={e => setFormData({ ...formData, powerbiWorkspaceId: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono text-sm"
                   placeholder="e.g., 12345678-1234-1234-1234-123456789abc"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -387,7 +387,7 @@ export default function CreateOrganizationWizard({
                   type="text"
                   value={formData.powerbiWorkspaceName}
                   onChange={e => setFormData({ ...formData, powerbiWorkspaceName: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                   placeholder="e.g., fws_demo1_prod"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -434,7 +434,7 @@ export default function CreateOrganizationWizard({
                   type="text"
                   value={formData.billingContactName}
                   onChange={e => setFormData({ ...formData, billingContactName: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                   placeholder="John Smith"
                 />
               </div>
@@ -447,7 +447,7 @@ export default function CreateOrganizationWizard({
                   type="email"
                   value={formData.billingEmail}
                   onChange={e => setFormData({ ...formData, billingEmail: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
                   placeholder="billing@example.com"
                 />
               </div>
@@ -476,7 +476,7 @@ export default function CreateOrganizationWizard({
                   <div className="space-y-2">
                     {selectedLms && (
                       <div className="flex items-center gap-2">
-                        <span className="inline-block px-2 py-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded">
+                        <span className="inline-block px-2 py-1 text-xs font-semibold text-[#0eafaa] bg-[#e6ffff] rounded">
                           LMS
                         </span>
                         <span className="text-sm text-slate-900">{selectedLms.display_name}</span>
@@ -527,7 +527,7 @@ export default function CreateOrganizationWizard({
             <button
               onClick={handleNext}
               disabled={isSubmitting}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors disabled:opacity-50"
             >
               Next
             </button>
@@ -535,7 +535,7 @@ export default function CreateOrganizationWizard({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Creating...' : 'Create Organization'}
             </button>
