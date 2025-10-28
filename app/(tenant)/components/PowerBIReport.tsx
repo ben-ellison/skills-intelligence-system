@@ -39,11 +39,19 @@ export default function PowerBIReport({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get embed token');
+        const errorData = await response.json();
+        console.error('Failed to get embed token:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Failed to get embed token');
       }
 
       const data = await response.json();
       console.log('PowerBI Embed Token Response:', data);
+
+      if (!data.embedUrl || !data.accessToken) {
+        console.error('Missing embedUrl or accessToken in response:', data);
+        throw new Error('Received invalid embed token response - missing embedUrl or accessToken');
+      }
+
       setEmbedUrl(data.embedUrl);
       setAccessToken(data.accessToken);
     } catch (err: any) {
