@@ -104,7 +104,7 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           <Link
             href="/super-admin/reports"
             className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
@@ -118,6 +118,23 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
               <div>
                 <h3 className="font-semibold text-slate-900">PowerBI Reports</h3>
                 <p className="text-sm text-slate-600">Manage report library</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/super-admin/global-modules"
+            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-[#e6ffff] rounded-lg">
+                <svg className="w-6 h-6 text-[#00e5c0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Global Modules</h3>
+                <p className="text-sm text-slate-600">Configure sidebar modules</p>
               </div>
             </div>
           </Link>

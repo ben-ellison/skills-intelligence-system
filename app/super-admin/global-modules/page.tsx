@@ -2,13 +2,9 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
-import ModulesPageWrapper from './page-wrapper';
+import GlobalModulesPageWrapper from './page-wrapper';
 
-export default async function OrganizationModulesPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function GlobalModulesPage() {
   const session = await getServerSession(authOptions);
 
   // Check if user is logged in
@@ -21,30 +17,16 @@ export default async function OrganizationModulesPage({
     redirect('/dashboard');
   }
 
-  const { id: organizationId } = await params;
   const supabase = createAdminClient();
 
-  // Fetch organization details
-  const { data: organization } = await supabase
-    .from('organizations')
-    .select('id, name, subdomain')
-    .eq('id', organizationId)
-    .single();
-
-  if (!organization) {
-    redirect('/super-admin');
-  }
-
-  // Fetch organization modules
+  // Fetch all global modules
   const { data: modules } = await supabase
-    .from('organization_modules')
+    .from('global_modules')
     .select('*')
-    .eq('organization_id', organizationId)
     .order('sort_order', { ascending: true });
 
   return (
-    <ModulesPageWrapper
-      organization={organization}
+    <GlobalModulesPageWrapper
       initialModules={modules || []}
     />
   );
