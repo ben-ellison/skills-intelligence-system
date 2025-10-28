@@ -13,7 +13,39 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: true,
   callbacks: {
+    async jwt({ token, account, profile }) {
+      // Initial sign in
+      if (account && profile) {
+        token.sub = account.providerAccountId; // Auth0 user ID
+        token.email = (profile as any).email;
+      }
+      return token;
+    },
     async session({ session, token }) {
+      if (session.user && token.sub) {
+        // Enrich session with user data from Supabase
+        const supabase = createAdminClient();
+
+        try {
+          const { data: user } = await supabase
+            .from('users')
+            .select('id, email, organization_id, is_super_admin, is_tenant_admin, role_id')
+            .eq('auth0_user_id', token.sub)
+            .single();
+
+          if (user) {
+            session.user.id = user.id;
+            session.user.email = user.email;
+            session.user.organizationId = user.organization_id;
+            session.user.isSuperAdmin = user.is_super_admin;
+            session.user.isTenantAdmin = user.is_tenant_admin;
+            session.user.roleId = user.role_id;
+            session.user.role = user.is_super_admin ? 'super-admin' : (user.is_tenant_admin ? 'tenant-admin' : 'user');
+          }
+        } catch (error) {
+          console.error('Error enriching session:', error);
+        }
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {

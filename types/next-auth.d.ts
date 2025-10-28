@@ -11,6 +11,8 @@ declare module 'next-auth' {
       isSuperAdmin?: boolean;
       isTenantAdmin?: boolean;
       organizationId?: string;
+      roleId?: string;
+      role?: string;
     };
   }
 
@@ -18,6 +20,8 @@ declare module 'next-auth' {
     isSuperAdmin?: boolean;
     isTenantAdmin?: boolean;
     organizationId?: string;
+    roleId?: string;
+    role?: string;
   }
 }
 
