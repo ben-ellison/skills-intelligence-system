@@ -215,10 +215,10 @@ export default function TenantNavigation({
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
-        } bg-white border-r border-slate-200 transition-all duration-300 ease-in-out flex flex-col`}
+        } bg-[#e6ffff] border-r border-[#0eafaa] transition-all duration-300 ease-in-out flex flex-col`}
       >
         {/* Logo/Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#0eafaa]">
           {sidebarOpen ? (
             <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
               Skills Intelligence System
@@ -230,7 +230,7 @@ export default function TenantNavigation({
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-md hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-md hover:bg-[#00f9e3]/20 transition-colors"
             aria-label="Toggle sidebar"
           >
             <ChevronLeft
@@ -252,8 +252,8 @@ export default function TenantNavigation({
                 href="/modules"
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   pathname === '/modules'
-                    ? 'bg-[#e6ffff] text-[#033c3a]'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-white text-[#033c3a] shadow-sm'
+                    : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                 }`}
               >
                 <Home className="w-5 h-5 mr-3" />
@@ -279,7 +279,7 @@ export default function TenantNavigation({
                         className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
                           isActive
                             ? 'bg-[#e6ffff] text-[#0eafaa]'
-                            : 'text-slate-700 hover:bg-slate-100'
+                            : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                         }`}
                       >
                         {group.icon}
@@ -291,7 +291,7 @@ export default function TenantNavigation({
                   // Two modules - show both without collapse
                   return (
                     <div key={group.id} className="mt-2">
-                      <div className="flex items-center px-3 py-2 text-sm font-medium text-slate-700">
+                      <div className="flex items-center px-3 py-2 text-sm font-medium text-[#033c3a]">
                         {group.icon}
                         {sidebarOpen && <span className="ml-3">{group.name}</span>}
                       </div>
@@ -306,7 +306,7 @@ export default function TenantNavigation({
                                 className={`block px-3 py-2 text-sm rounded-md transition-colors ${
                                   isActive
                                     ? 'bg-[#e6ffff] text-[#0eafaa] font-medium'
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                    : 'text-slate-600 hover:bg-[#00f9e3]/20 hover:text-slate-900'
                                 }`}
                               >
                                 {module.display_name}
@@ -324,7 +324,7 @@ export default function TenantNavigation({
                   <div key={group.id} className="mt-2">
                     <button
                       onClick={() => toggleGroup(group.id)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-[#033c3a] hover:bg-[#00f9e3]/20 rounded-md transition-colors"
                     >
                       <div className="flex items-center">
                         {group.icon}
@@ -347,8 +347,8 @@ export default function TenantNavigation({
                               href={`/modules/${module.name}`}
                               className={`block px-3 py-2 text-sm rounded-md transition-colors ${
                                 isActive
-                                  ? 'bg-[#e6ffff] text-[#033c3a] font-medium'
-                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                  ? 'bg-white text-[#033c3a] font-medium shadow-sm'
+                                  : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                               }`}
                             >
                               {module.display_name}
@@ -365,24 +365,24 @@ export default function TenantNavigation({
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="border-t border-slate-200">
+        <div className="border-t border-[#0eafaa]">
           <Link
             href="/help"
-            className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+            className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
           >
             <HelpCircle className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Help & Knowledge Base</span>}
           </Link>
           <Link
             href="/support"
-            className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+            className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
           >
             <Headphones className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Support</span>}
           </Link>
           <Link
             href="/tenant-admin"
-            className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+            className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
           >
             <SettingsIcon className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Tenant Admin</span>}
@@ -393,14 +393,14 @@ export default function TenantNavigation({
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+        <header className="h-16 bg-[#e6ffff] border-b border-[#0eafaa] flex items-center justify-between px-6">
           <h1 className="text-xl font-semibold text-slate-900">
             {modules.find(m => pathname?.startsWith(`/modules/${m.name}`))?.display_name || organizationName || 'Dashboard'}
           </h1>
 
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <button className="p-2 rounded-md hover:bg-slate-100 transition-colors relative">
+            <button className="p-2 rounded-md hover:bg-[#00f9e3]/20 transition-colors relative">
               <Bell className="w-5 h-5 text-slate-600" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
@@ -409,7 +409,7 @@ export default function TenantNavigation({
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center space-x-2 p-2 rounded-md hover:bg-slate-100 transition-colors"
+                className="flex items-center space-x-2 p-2 rounded-md hover:bg-[#00f9e3]/20 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-[#00e5c0] text-[#0a2929] flex items-center justify-center text-sm font-medium">
                   {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || 'U'}
@@ -420,8 +420,8 @@ export default function TenantNavigation({
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
-                  <div className="px-4 py-3 border-b border-slate-200">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-[#0eafaa] py-1 z-50">
+                  <div className="px-4 py-3 border-b border-[#0eafaa]/30">
                     <p className="text-sm font-medium text-slate-900">
                       {session.user?.name || session.user?.email}
                     </p>
@@ -429,7 +429,7 @@ export default function TenantNavigation({
                   </div>
                   <Link
                     href="/profile"
-                    className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                    className="flex items-center px-4 py-2 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20"
                     onClick={() => setShowProfileMenu(false)}
                   >
                     <User className="w-4 h-4 mr-3" />
@@ -437,13 +437,13 @@ export default function TenantNavigation({
                   </Link>
                   <Link
                     href="/profile/settings"
-                    className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                    className="flex items-center px-4 py-2 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20"
                     onClick={() => setShowProfileMenu(false)}
                   >
                     <SettingsIcon className="w-4 h-4 mr-3" />
                     Settings
                   </Link>
-                  <div className="border-t border-slate-200 my-1"></div>
+                  <div className="border-t border-[#0eafaa]/30 my-1"></div>
                   <a
                     href="/api/auth/signout"
                     className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
