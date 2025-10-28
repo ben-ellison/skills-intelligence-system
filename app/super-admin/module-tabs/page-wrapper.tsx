@@ -119,7 +119,7 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
   // Filter by selected module
   const filteredModules = selectedModule === 'all'
     ? Object.keys(tabsByModule)
-    : [selectedModule];
+    : (tabsByModule[selectedModule] ? [selectedModule] : []);
 
   const getModuleLabel = (moduleName: string) => {
     return MODULE_NAMES.find(m => m.value === moduleName)?.label || moduleName;
