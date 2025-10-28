@@ -241,7 +241,14 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
                 <tbody>
                   {data.organizations.map((org) => (
                     <tr key={org.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-3 px-4 text-slate-900">{org.name}</td>
+                      <td className="py-3 px-4">
+                        <Link
+                          href={`/super-admin/organizations/${org.id}`}
+                          className="text-slate-900 hover:text-[#00e5c0] font-medium transition-colors"
+                        >
+                          {org.name}
+                        </Link>
+                      </td>
                       <td className="py-3 px-4">
                         <code className="text-sm bg-slate-100 px-2 py-1 rounded">
                           {org.subdomain}
