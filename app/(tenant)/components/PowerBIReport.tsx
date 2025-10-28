@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as pbi from 'powerbi-client';
 import * as models from 'powerbi-models';
 
@@ -8,6 +8,12 @@ interface PowerBIReportProps {
   reportId: string;
   workspaceId: string;
   reportName: string;
+}
+
+interface ReportPage {
+  name: string;
+  displayName: string;
+  isActive: boolean;
 }
 
 export default function PowerBIReport({
@@ -19,6 +25,9 @@ export default function PowerBIReport({
   const [accessToken, setAccessToken] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pages, setPages] = useState<ReportPage[]>([]);
+  const [activePage, setActivePage] = useState<string>('');
+  const reportRef = useRef<pbi.Embed | null>(null);
 
   useEffect(() => {
     fetchEmbedToken();
@@ -66,7 +75,7 @@ export default function PowerBIReport({
     embedReport();
   }, [embedUrl, accessToken]);
 
-  const embedReport = () => {
+  const embedReport = async () => {
     const embedContainer = document.getElementById('powerbi-container');
     if (!embedContainer) {
       console.error('PowerBI container not found!');
@@ -99,7 +108,7 @@ export default function PowerBIReport({
               visible: false,
             },
             pageNavigation: {
-              visible: false,
+              visible: false, // Hide the bottom page tabs
             },
           },
           background: models.BackgroundType.Default,
@@ -109,11 +118,34 @@ export default function PowerBIReport({
       console.log('Embed config created');
 
       // Embed the report
-      const report = powerbi.embed(embedContainer, config);
+      const report = powerbi.embed(embedContainer, config) as pbi.Report;
+      reportRef.current = report;
       console.log('Report embedded successfully');
 
-      report.on('loaded', () => {
+      report.on('loaded', async () => {
         console.log('Report loaded!');
+
+        try {
+          // Get all pages from the report
+          const reportPages = await report.getPages();
+          console.log('Report pages:', reportPages);
+
+          const pageList: ReportPage[] = reportPages.map((page: any) => ({
+            name: page.name,
+            displayName: page.displayName,
+            isActive: page.isActive,
+          }));
+
+          setPages(pageList);
+
+          // Set the active page
+          const active = pageList.find(p => p.isActive);
+          if (active) {
+            setActivePage(active.name);
+          }
+        } catch (err) {
+          console.error('Error getting pages:', err);
+        }
       });
 
       report.on('error', (event: any) => {
@@ -123,6 +155,24 @@ export default function PowerBIReport({
     } catch (error) {
       console.error('Error embedding report:', error);
       setError('Failed to embed report: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  };
+
+  const handlePageChange = async (pageName: string) => {
+    if (!reportRef.current) return;
+
+    try {
+      const report = reportRef.current as pbi.Report;
+      const pages = await report.getPages();
+      const targetPage = pages.find((page: any) => page.name === pageName);
+
+      if (targetPage) {
+        await targetPage.setActive();
+        setActivePage(pageName);
+        console.log('Switched to page:', pageName);
+      }
+    } catch (error) {
+      console.error('Error switching page:', error);
     }
   };
 
@@ -157,6 +207,32 @@ export default function PowerBIReport({
   }
 
   return (
-    <div id="powerbi-container" className="w-full h-full" />
+    <div className="h-full flex flex-col">
+      {/* Page Navigation Tabs */}
+      {pages.length > 1 && (
+        <div className="bg-[#e6ffff] border-b border-[#0eafaa]">
+          <div className="px-6">
+            <div className="flex space-x-1 overflow-x-auto">
+              {pages.map((page) => (
+                <button
+                  key={page.name}
+                  onClick={() => handlePageChange(page.name)}
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    activePage === page.name
+                      ? 'border-[#00e5c0] text-[#033c3a] bg-white'
+                      : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
+                  }`}
+                >
+                  {page.displayName}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PowerBI Report Container */}
+      <div id="powerbi-container" className="flex-1 w-full" />
+    </div>
   );
 }
