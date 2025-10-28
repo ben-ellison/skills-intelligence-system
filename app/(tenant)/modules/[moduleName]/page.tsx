@@ -87,44 +87,18 @@ export default function ModulePage({
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Report Tabs */}
-      {reports.length > 1 && (
-        <div className="bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex space-x-1 overflow-x-auto">
-              {reports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => setSelectedReport(report)}
-                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    selectedReport?.id === report.id
-                      ? 'border-purple-600 text-purple-600'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
-                  }`}
-                >
-                  {report.custom_display_name}
-                </button>
-              ))}
-            </div>
-          </div>
+    <div className="h-full w-full">
+      {selectedReport ? (
+        <PowerBIReport
+          reportId={selectedReport.powerbi_report_id}
+          workspaceId={selectedReport.powerbi_workspace_id}
+          reportName={selectedReport.custom_display_name}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-slate-500">Select a report to view</p>
         </div>
       )}
-
-      {/* Report Display */}
-      <div className="flex-1 bg-slate-50">
-        {selectedReport ? (
-          <PowerBIReport
-            reportId={selectedReport.powerbi_report_id}
-            workspaceId={selectedReport.powerbi_workspace_id}
-            reportName={selectedReport.custom_display_name}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-slate-500">Select a report to view</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
