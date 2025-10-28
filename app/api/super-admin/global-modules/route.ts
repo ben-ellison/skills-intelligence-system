@@ -3,42 +3,34 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 
-// GET /api/super-admin/organizations/[id]/modules
-// List all modules for an organization
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+// GET /api/super-admin/global-modules
+// Get all global modules
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Super Admin access required' },
-        { status: 403 }
-      );
+    if (!session || session.user.role !== 'super-admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
     const supabase = createAdminClient();
 
     const { data: modules, error } = await supabase
-      .from('organization_modules')
-      .select('id, name, display_name, sort_order, is_active')
-      .eq('organization_id', organizationId)
+      .from('global_modules')
+      .select('*')
       .order('sort_order', { ascending: true });
 
     if (error) {
-      console.error('Error fetching modules:', error);
+      console.error('Error fetching global modules:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch modules' },
+        { error: 'Failed to fetch global modules' },
         { status: 500 }
       );
     }
 
     return NextResponse.json(modules || []);
   } catch (error) {
-    console.error('Error in GET /api/super-admin/organizations/[id]/modules:', error);
+    console.error('Error in GET global modules:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -46,25 +38,18 @@ export async function GET(
   }
 }
 
-// POST /api/super-admin/organizations/[id]/modules
-// Create a new module for an organization
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+// POST /api/super-admin/global-modules
+// Create a new global module
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Super Admin access required' },
-        { status: 403 }
-      );
+    if (!session || session.user.role !== 'super-admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
     const body = await request.json();
-    const { name, display_name, sort_order, is_active } = body;
+    const { name, display_name, icon_name, module_group, sort_order, description, is_active } = body;
 
     if (!name || !display_name) {
       return NextResponse.json(
@@ -76,28 +61,30 @@ export async function POST(
     const supabase = createAdminClient();
 
     const { data: module, error } = await supabase
-      .from('organization_modules')
+      .from('global_modules')
       .insert({
-        organization_id: organizationId,
         name,
         display_name,
+        icon_name: icon_name || null,
+        module_group: module_group || null,
         sort_order: sort_order || 0,
+        description: description || null,
         is_active: is_active !== undefined ? is_active : true,
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating module:', error);
+      console.error('Error creating global module:', error);
       return NextResponse.json(
-        { error: 'Failed to create module', details: error.message },
+        { error: 'Failed to create global module', details: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json(module);
   } catch (error) {
-    console.error('Error in POST modules:', error);
+    console.error('Error in POST global module:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -105,23 +92,16 @@ export async function POST(
   }
 }
 
-// PATCH /api/super-admin/organizations/[id]/modules
-// Update module sort orders (for drag-and-drop reordering)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+// PATCH /api/super-admin/global-modules
+// Update multiple modules (for reordering)
+export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Super Admin access required' },
-        { status: 403 }
-      );
+    if (!session || session.user.role !== 'super-admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: organizationId } = await params;
     const body = await request.json();
     const { modules } = body; // Array of {id, sort_order}
 
@@ -137,17 +117,16 @@ export async function PATCH(
     // Update sort orders for all modules
     const updates = modules.map(async ({ id, sort_order }) => {
       return supabase
-        .from('organization_modules')
+        .from('global_modules')
         .update({ sort_order })
-        .eq('id', id)
-        .eq('organization_id', organizationId);
+        .eq('id', id);
     });
 
     await Promise.all(updates);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in PATCH modules:', error);
+    console.error('Error in PATCH global modules:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

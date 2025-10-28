@@ -1,53 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/server';
 
 // GET /api/tenant/modules
-// Get all modules available to the current user's organization
+// Get the effective modules for the current user's organization
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    console.log('GET /api/tenant/modules - Session:', session?.user?.email);
-
     if (!session || !session.user?.email) {
-      console.log('No session or email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // Use email to find user instead of sub (which might be undefined)
-    console.log('Looking for user with email:', session.user.email);
+    const supabase = createAdminClient();
 
     // Get user's organization
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('organization_id, role_id, auth0_user_id')
+      .select('organization_id')
       .eq('email', session.user.email)
       .single();
 
-    console.log('User query result:', { user, error: userError });
-
     if (userError || !user?.organization_id) {
-      console.log('User not found or no organization');
       return NextResponse.json(
-        { error: 'User organization not found', details: userError },
+        { error: 'User not properly configured' },
         { status: 404 }
       );
     }
 
-    // Get active modules for this organization
+    // Use the helper function to get effective modules
     const { data: modules, error: modulesError } = await supabase
-      .from('organization_modules')
-      .select('id, name, display_name, sort_order, icon')
-      .eq('organization_id', user.organization_id)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
+      .rpc('get_modules_for_organization', {
+        p_organization_id: user.organization_id,
+      });
 
     if (modulesError) {
       console.error('Error fetching modules:', modulesError);
@@ -59,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(modules || []);
   } catch (error) {
-    console.error('Error in GET /api/tenant/modules:', error);
+    console.error('Error in GET modules:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
