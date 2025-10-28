@@ -44,8 +44,8 @@ export default function PowerBIReport({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reportId,
-          // workspaceId is now fetched from organization settings server-side
+          templateReportId: reportId, // reportId prop is actually the template report ID
+          // The API will look up the organization's deployed instance
         }),
       });
 

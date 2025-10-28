@@ -13,16 +13,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reportId } = await request.json();
+    const { templateReportId } = await request.json();
 
-    if (!reportId) {
+    if (!templateReportId) {
       return NextResponse.json(
-        { error: 'reportId is required' },
+        { error: 'templateReportId is required' },
         { status: 400 }
       );
     }
 
-    // Get user's organization and workspace ID from database
+    // Get user's organization from database
     const supabase = createAdminClient();
 
     const { data: user, error: userError } = await supabase
@@ -39,23 +39,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: organization, error: orgError } = await supabase
-      .from('organizations')
-      .select('powerbi_workspace_id')
-      .eq('id', user.organization_id)
+    // Get the organization's deployed report instance
+    const { data: orgReport, error: orgReportError } = await supabase
+      .from('organization_powerbi_reports')
+      .select('powerbi_report_id, powerbi_workspace_id, deployment_status, name')
+      .eq('organization_id', user.organization_id)
+      .eq('template_report_id', templateReportId)
+      .eq('deployment_status', 'active')
       .single();
 
-    if (orgError || !organization?.powerbi_workspace_id) {
-      console.error('Failed to get organization workspace:', orgError);
+    if (orgReportError || !orgReport) {
+      console.error('Failed to get organization report:', orgReportError);
       return NextResponse.json(
-        { error: 'Organization PowerBI workspace not configured. Please contact your administrator to set up the PowerBI Workspace ID in settings.' },
+        { error: 'Report not deployed to your organization. Please contact your administrator.' },
         { status: 404 }
       );
     }
 
-    const workspaceId = organization.powerbi_workspace_id;
+    const reportId = orgReport.powerbi_report_id;
+    const workspaceId = orgReport.powerbi_workspace_id;
 
-    console.log('PowerBI embed token request:', { reportId, workspaceId, organizationId: user.organization_id });
+    console.log('PowerBI embed token request:', {
+      templateReportId,
+      reportId,
+      workspaceId,
+      organizationId: user.organization_id,
+      reportName: orgReport.name
+    });
 
     // Check if PowerBI credentials are configured
     const clientId = process.env.POWERBI_CLIENT_ID;
