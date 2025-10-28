@@ -91,7 +91,7 @@ export default function PowerBIReport({
               visible: true,
             },
             pageNavigation: {
-              visible: true,
+              visible: false,
             },
           },
           background: models.BackgroundType.Default,
