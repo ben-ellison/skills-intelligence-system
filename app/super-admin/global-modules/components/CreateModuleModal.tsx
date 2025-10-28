@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import * as Icons from 'lucide-react';
 import { X } from 'lucide-react';
 
 interface CreateModuleModalProps {
@@ -141,6 +142,18 @@ export default function CreateModuleModal({ onClose, onModuleCreated }: CreateMo
                 <option key={icon} value={icon}>{icon}</option>
               ))}
             </select>
+            {formData.icon_name && (() => {
+              const IconComponent = (Icons as any)[formData.icon_name];
+              return IconComponent ? (
+                <div className="mt-3 p-4 bg-[#e6ffff] rounded-lg border border-[#0eafaa]/30">
+                  <p className="text-sm text-[#033c3a]/60 mb-2">Preview:</p>
+                  <div className="flex items-center space-x-3">
+                    <IconComponent className="w-6 h-6 text-[#033c3a]" />
+                    <span className="text-[#033c3a] font-medium">{formData.display_name || 'Module Name'}</span>
+                  </div>
+                </div>
+              ) : null;
+            })()}
           </div>
 
           {/* Module Group */}
