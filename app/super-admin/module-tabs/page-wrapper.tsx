@@ -26,22 +26,16 @@ interface Report {
   name: string;
 }
 
+interface Module {
+  name: string;
+  display_name: string;
+}
+
 interface ModuleTabsData {
   moduleTabs: ModuleTab[];
   reports: Report[];
+  modules: Module[];
 }
-
-// Known module names - these should match the module names in organization_modules
-const MODULE_NAMES = [
-  { value: 'senior-leader', label: 'Senior Leadership' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'quality', label: 'Quality & Curriculum' },
-  { value: 'compliance', label: 'Compliance' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'aaf', label: 'Accountability Framework' },
-  { value: 'qar', label: 'QAR Information' },
-  { value: 'funding', label: 'Funding Information' },
-];
 
 export default function ModuleTabsPageWrapper({ initialData }: { initialData: ModuleTabsData }) {
   const [data, setData] = useState<ModuleTabsData>(initialData);
@@ -120,7 +114,7 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
     : (tabsByModule[selectedModule] ? [selectedModule] : []);
 
   const getModuleLabel = (moduleName: string) => {
-    return MODULE_NAMES.find(m => m.value === moduleName)?.label || moduleName;
+    return data.modules.find(m => m.name === moduleName)?.display_name || moduleName;
   };
 
   return (
@@ -179,9 +173,9 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
             className="w-full md:w-64 px-4 py-2 border border-[#0eafaa]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00e5c0]"
           >
             <option value="all">All Modules</option>
-            {MODULE_NAMES.map(module => (
-              <option key={module.value} value={module.value}>
-                {module.label}
+            {data.modules.map(module => (
+              <option key={module.name} value={module.name}>
+                {module.display_name}
               </option>
             ))}
           </select>
@@ -269,6 +263,7 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
       {isCreateModalOpen && (
         <CreateTabModal
           reports={data.reports}
+          modules={data.modules}
           onClose={() => setIsCreateModalOpen(false)}
           onTabCreated={handleTabCreated}
         />
@@ -278,6 +273,7 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
         <EditTabModal
           tab={selectedTab}
           reports={data.reports}
+          modules={data.modules}
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedTab(null);

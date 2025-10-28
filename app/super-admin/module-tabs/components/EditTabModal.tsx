@@ -8,6 +8,11 @@ interface Report {
   name: string;
 }
 
+interface Module {
+  name: string;
+  display_name: string;
+}
+
 interface ModuleTab {
   id: string;
   module_name: string;
@@ -25,22 +30,12 @@ interface ModuleTab {
 interface EditTabModalProps {
   tab: ModuleTab;
   reports: Report[];
+  modules: Module[];
   onClose: () => void;
   onTabUpdated: (tab: any) => void;
 }
 
-const MODULE_NAMES = [
-  { value: 'senior-leader', label: 'Senior Leadership' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'quality', label: 'Quality & Curriculum' },
-  { value: 'compliance', label: 'Compliance' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'aaf', label: 'Accountability Framework' },
-  { value: 'qar', label: 'QAR Information' },
-  { value: 'funding', label: 'Funding Information' },
-];
-
-export default function EditTabModal({ tab, reports, onClose, onTabUpdated }: EditTabModalProps) {
+export default function EditTabModal({ tab, reports, modules, onClose, onTabUpdated }: EditTabModalProps) {
   const [formData, setFormData] = useState({
     module_name: tab.module_name,
     tab_name: tab.tab_name,
@@ -120,9 +115,9 @@ export default function EditTabModal({ tab, reports, onClose, onTabUpdated }: Ed
               required
             >
               <option value="">Select a module...</option>
-              {MODULE_NAMES.map(module => (
-                <option key={module.value} value={module.value}>
-                  {module.label}
+              {modules.map(module => (
+                <option key={module.name} value={module.name}>
+                  {module.display_name}
                 </option>
               ))}
             </select>

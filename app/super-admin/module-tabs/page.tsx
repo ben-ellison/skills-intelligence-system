@@ -36,11 +36,19 @@ export default async function ModuleTabsPage() {
     .eq('is_active', true)
     .order('name', { ascending: true });
 
+  // Fetch all global modules
+  const { data: globalModules } = await supabase
+    .from('global_modules')
+    .select('name, display_name')
+    .eq('is_active', true)
+    .order('display_name', { ascending: true });
+
   return (
     <ModuleTabsPageWrapper
       initialData={{
         moduleTabs: moduleTabs || [],
         reports: reports || [],
+        modules: globalModules || [],
       }}
     />
   );

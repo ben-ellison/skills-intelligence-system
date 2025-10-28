@@ -8,24 +8,19 @@ interface Report {
   name: string;
 }
 
+interface Module {
+  name: string;
+  display_name: string;
+}
+
 interface CreateTabModalProps {
   reports: Report[];
+  modules: Module[];
   onClose: () => void;
   onTabCreated: (tab: any) => void;
 }
 
-const MODULE_NAMES = [
-  { value: 'senior-leader', label: 'Senior Leadership' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'quality', label: 'Quality & Curriculum' },
-  { value: 'compliance', label: 'Compliance' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'aaf', label: 'Accountability Framework' },
-  { value: 'qar', label: 'QAR Information' },
-  { value: 'funding', label: 'Funding Information' },
-];
-
-export default function CreateTabModal({ reports, onClose, onTabCreated }: CreateTabModalProps) {
+export default function CreateTabModal({ reports, modules, onClose, onTabCreated }: CreateTabModalProps) {
   const [formData, setFormData] = useState({
     module_name: '',
     tab_name: '',
@@ -105,9 +100,9 @@ export default function CreateTabModal({ reports, onClose, onTabCreated }: Creat
               required
             >
               <option value="">Select a module...</option>
-              {MODULE_NAMES.map(module => (
-                <option key={module.value} value={module.value}>
-                  {module.label}
+              {modules.map(module => (
+                <option key={module.name} value={module.name}>
+                  {module.display_name}
                 </option>
               ))}
             </select>
