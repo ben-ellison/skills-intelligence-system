@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       .from('module_tabs')
       .select(`
         *,
-        report:powerbi_reports(id, name, display_name)
+        report:powerbi_reports(id, name)
       `)
       .order('module_name', { ascending: true })
       .order('sort_order', { ascending: true });
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       })
       .select(`
         *,
-        report:powerbi_reports(id, name, display_name)
+        report:powerbi_reports(id, name)
       `)
       .single();
 

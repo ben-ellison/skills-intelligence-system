@@ -23,7 +23,7 @@ export async function GET(
       .from('module_tabs')
       .select(`
         *,
-        report:powerbi_reports(id, name, display_name)
+        report:powerbi_reports(id, name)
       `)
       .eq('id', id)
       .single();
@@ -78,7 +78,7 @@ export async function PUT(
       .eq('id', id)
       .select(`
         *,
-        report:powerbi_reports(id, name, display_name)
+        report:powerbi_reports(id, name)
       `)
       .single();
 
