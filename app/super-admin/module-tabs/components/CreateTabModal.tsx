@@ -6,7 +6,6 @@ import { X } from 'lucide-react';
 interface Report {
   id: string;
   name: string;
-  display_name: string;
 }
 
 interface CreateTabModalProps {
@@ -164,7 +163,7 @@ export default function CreateTabModal({ reports, onClose, onTabCreated }: Creat
               <option value="">Select a report...</option>
               {reports.map(report => (
                 <option key={report.id} value={report.id}>
-                  {report.display_name}
+                  {report.name}
                 </option>
               ))}
             </select>

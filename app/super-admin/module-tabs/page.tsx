@@ -24,7 +24,7 @@ export default async function ModuleTabsPage() {
     .from('module_tabs')
     .select(`
       *,
-      report:powerbi_reports(id, name, display_name)
+      report:powerbi_reports(id, name)
     `)
     .order('module_name', { ascending: true })
     .order('sort_order', { ascending: true });
@@ -32,9 +32,9 @@ export default async function ModuleTabsPage() {
   // Fetch all available PowerBI reports
   const { data: reports } = await supabase
     .from('powerbi_reports')
-    .select('id, name, display_name')
+    .select('id, name')
     .eq('is_active', true)
-    .order('display_name', { ascending: true });
+    .order('name', { ascending: true });
 
   return (
     <ModuleTabsPageWrapper

@@ -18,14 +18,12 @@ interface ModuleTab {
   report: {
     id: string;
     name: string;
-    display_name: string;
   };
 }
 
 interface Report {
   id: string;
   name: string;
-  display_name: string;
 }
 
 interface ModuleTabsData {
@@ -225,7 +223,7 @@ export default function ModuleTabsPageWrapper({ initialData }: { initialData: Mo
                             <div>
                               <h3 className="text-lg font-medium text-[#033c3a]">{tab.tab_name}</h3>
                               <p className="text-sm text-[#033c3a]/70">
-                                Report: {tab.report.display_name}
+                                Report: {tab.report.name}
                                 {tab.page_name && ` • Page: ${tab.page_name}`}
                               </p>
                             </div>

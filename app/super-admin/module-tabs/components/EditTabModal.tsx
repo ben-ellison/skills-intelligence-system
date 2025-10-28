@@ -6,7 +6,6 @@ import { X } from 'lucide-react';
 interface Report {
   id: string;
   name: string;
-  display_name: string;
 }
 
 interface ModuleTab {
@@ -20,7 +19,6 @@ interface ModuleTab {
   report: {
     id: string;
     name: string;
-    display_name: string;
   };
 }
 
@@ -177,7 +175,7 @@ export default function EditTabModal({ tab, reports, onClose, onTabUpdated }: Ed
               <option value="">Select a report...</option>
               {reports.map(report => (
                 <option key={report.id} value={report.id}>
-                  {report.display_name}
+                  {report.name}
                 </option>
               ))}
             </select>
