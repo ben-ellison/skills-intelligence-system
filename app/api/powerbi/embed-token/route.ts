@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
 
     const { reportId, workspaceId } = await request.json();
 
+    console.log('PowerBI embed token request:', { reportId, workspaceId });
+
     if (!reportId || !workspaceId) {
       return NextResponse.json(
         { error: 'reportId and workspaceId are required' },
@@ -27,13 +29,18 @@ export async function POST(request: NextRequest) {
     const tenantId = process.env.POWERBI_TENANT_ID;
 
     if (!clientId || !clientSecret || !tenantId) {
+      console.error('PowerBI env vars missing:', {
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret,
+        hasTenantId: !!tenantId,
+      });
       return NextResponse.json({
         error: 'PowerBI integration not configured',
         message:
           'PowerBI Embedded requires Azure AD credentials. Please configure POWERBI_CLIENT_ID, POWERBI_CLIENT_SECRET, and POWERBI_TENANT_ID environment variables.',
         reportId,
         workspaceId,
-      });
+      }, { status: 500 });
     }
 
     // Step 1: Get Azure AD access token
@@ -88,6 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     const embedData = await embedResponse.json();
+    console.log('Embed token generated successfully');
 
     // Step 3: Get the embed URL
     const reportUrl = `https://api.powerbi.com/v1.0/myorg/groups/${workspaceId}/reports/${reportId}`;
@@ -108,12 +116,20 @@ export async function POST(request: NextRequest) {
 
     const reportDetails = await reportResponse.json();
 
-    return NextResponse.json({
+    const responseData = {
       accessToken: embedData.token,
       embedUrl: reportDetails.embedUrl,
       expiration: embedData.expiration,
       tokenId: embedData.tokenId,
+    };
+
+    console.log('Returning embed token response:', {
+      hasAccessToken: !!responseData.accessToken,
+      hasEmbedUrl: !!responseData.embedUrl,
+      embedUrl: responseData.embedUrl,
     });
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error generating embed token:', error);
     return NextResponse.json(
