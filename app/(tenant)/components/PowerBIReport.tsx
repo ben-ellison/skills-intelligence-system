@@ -88,7 +88,7 @@ export default function PowerBIReport({
           panes: {
             filters: {
               expanded: false,
-              visible: true,
+              visible: false,
             },
             pageNavigation: {
               visible: false,
