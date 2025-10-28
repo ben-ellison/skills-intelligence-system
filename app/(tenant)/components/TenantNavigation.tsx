@@ -4,15 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Session } from 'next-auth';
+import * as Icons from 'lucide-react';
 import {
   Home,
   Settings as SettingsIcon,
-  Wrench,
-  ClipboardCheck,
-  FileText,
-  TrendingUp,
-  FileSpreadsheet,
-  BarChart3,
   ChevronLeft,
   ChevronDown,
   ChevronRight,
@@ -27,17 +22,34 @@ interface Module {
   id: string;
   name: string;
   display_name: string;
+  icon_name: string | null;
+  module_group: string | null;
   sort_order: number;
-  icon?: string;
+  is_active: boolean;
+  source: string;
 }
 
 interface ModuleGroup {
   id: string;
   name: string;
-  icon: React.ReactNode;
   modules: Module[];
   expanded: boolean;
 }
+
+const getGroupLabel = (groupId: string): string => {
+  const labels: Record<string, string> = {
+    core: 'Core Modules',
+    analysis: 'Analysis & Reporting',
+    admin: 'Administration',
+  };
+  return labels[groupId] || groupId;
+};
+
+const getIconComponent = (iconName: string | null) => {
+  if (!iconName) return <SettingsIcon className="w-5 h-5" />;
+  const IconComponent = (Icons as any)[iconName];
+  return IconComponent ? <IconComponent className="w-5 h-5" /> : <SettingsIcon className="w-5 h-5" />;
+};
 
 export default function TenantNavigation({
   session,
@@ -88,119 +100,46 @@ export default function TenantNavigation({
   };
 
   const organizeModules = (moduleList: Module[]) => {
-    const moduleGroups: ModuleGroup[] = [
-      {
-        id: 'home',
-        name: 'Home',
-        icon: <Home className="w-5 h-5" />,
-        modules: [],
-        expanded: true,
-      },
-      {
-        id: 'leadership',
-        name: 'Senior Leadership',
-        icon: <User className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('senior-leader') ||
-          m.display_name.toLowerCase().includes('senior')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'operations',
-        name: 'Operations',
-        icon: <Wrench className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('operations') ||
-          m.display_name.toLowerCase().includes('operations')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'quality',
-        name: 'Quality & Curriculum',
-        icon: <ClipboardCheck className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('quality') ||
-          m.name.includes('internal-quality-assurer') ||
-          m.name.includes('learning-support-coach') ||
-          m.name.includes('skills-coach') ||
-          m.display_name.toLowerCase().includes('quality') ||
-          m.display_name.toLowerCase().includes('coach')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'compliance',
-        name: 'Compliance',
-        icon: <FileText className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('compliance') ||
-          m.display_name.toLowerCase().includes('compliance')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'sales',
-        name: 'Sales',
-        icon: <TrendingUp className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('sales') ||
-          m.display_name.toLowerCase().includes('sales')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'aaf',
-        name: 'Accountability Framework',
-        icon: <FileSpreadsheet className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('aaf') ||
-          m.display_name.toLowerCase().includes('aaf')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'qar',
-        name: 'QAR Information',
-        icon: <BarChart3 className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('qar') ||
-          m.display_name.toLowerCase().includes('qar') ||
-          m.display_name.toLowerCase().includes('scenarios')
-        ),
-        expanded: true,
-      },
-      {
-        id: 'funding',
-        name: 'Funding Information',
-        icon: <BarChart3 className="w-5 h-5" />,
-        modules: moduleList.filter(m =>
-          m.name.includes('funding') ||
-          m.display_name.toLowerCase().includes('funding')
-        ),
-        expanded: true,
-      },
-    ];
+    // Group modules by their module_group
+    const groupedByCategory: Record<string, Module[]> = {};
 
-    // Find modules that haven't been categorized and add them to "Other"
-    const categorizedModuleIds = new Set(
-      moduleGroups.flatMap(g => g.modules.map(m => m.id))
-    );
-    const uncategorizedModules = moduleList.filter(m => !categorizedModuleIds.has(m.id));
+    moduleList.forEach(module => {
+      const group = module.module_group || 'other';
+      if (!groupedByCategory[group]) {
+        groupedByCategory[group] = [];
+      }
+      groupedByCategory[group].push(module);
+    });
 
-    if (uncategorizedModules.length > 0) {
-      moduleGroups.push({
-        id: 'other',
-        name: 'Other',
-        icon: <SettingsIcon className="w-5 h-5" />,
-        modules: uncategorizedModules,
+    // Sort modules within each group by sort_order
+    Object.keys(groupedByCategory).forEach(group => {
+      groupedByCategory[group].sort((a, b) => a.sort_order - b.sort_order);
+    });
+
+    // Create ModuleGroup array in desired order
+    const groupOrder = ['core', 'analysis', 'admin', 'other'];
+    const moduleGroups: ModuleGroup[] = groupOrder
+      .filter(groupId => groupedByCategory[groupId]?.length > 0)
+      .map(groupId => ({
+        id: groupId,
+        name: getGroupLabel(groupId),
+        modules: groupedByCategory[groupId],
         expanded: true,
-      });
-    }
+      }));
 
-    // Filter out empty groups
-    setGroups(moduleGroups.filter(g => g.modules.length > 0 || g.id === 'home'));
+    // Add any groups not in the predefined order
+    Object.keys(groupedByCategory).forEach(groupId => {
+      if (!groupOrder.includes(groupId)) {
+        moduleGroups.push({
+          id: groupId,
+          name: getGroupLabel(groupId),
+          modules: groupedByCategory[groupId],
+          expanded: true,
+        });
+      }
+    });
+
+    setGroups(moduleGroups);
   };
 
   const toggleGroup = (groupId: string) => {
@@ -262,74 +201,14 @@ export default function TenantNavigation({
 
               {/* Module Groups */}
               {groups.map((group) => {
-                if (group.id === 'home' || group.modules.length === 0) return null;
-
-                // Groups with 2 or fewer modules - not collapsible
-                const isSmallGroup = group.modules.length <= 2;
-
-                if (isSmallGroup) {
-                  // Single module - direct link
-                  if (group.modules.length === 1) {
-                    const module = group.modules[0];
-                    const isActive = pathname?.startsWith(`/modules/${module.name}`);
-                    return (
-                      <Link
-                        key={group.id}
-                        href={`/modules/${module.name}`}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-2 ${
-                          isActive
-                            ? 'bg-[#e6ffff] text-[#0eafaa]'
-                            : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
-                        }`}
-                      >
-                        {group.icon}
-                        {sidebarOpen && <span className="ml-3">{group.name}</span>}
-                      </Link>
-                    );
-                  }
-
-                  // Two modules - show both without collapse
-                  return (
-                    <div key={group.id} className="mt-2">
-                      <div className="flex items-center px-3 py-2 text-sm font-medium text-[#033c3a]">
-                        {group.icon}
-                        {sidebarOpen && <span className="ml-3">{group.name}</span>}
-                      </div>
-                      {sidebarOpen && (
-                        <div className="ml-4 mt-1 space-y-1">
-                          {group.modules.map((module) => {
-                            const isActive = pathname?.startsWith(`/modules/${module.name}`);
-                            return (
-                              <Link
-                                key={module.id}
-                                href={`/modules/${module.name}`}
-                                className={`block px-3 py-2 text-sm rounded-md transition-colors ${
-                                  isActive
-                                    ? 'bg-[#e6ffff] text-[#0eafaa] font-medium'
-                                    : 'text-slate-600 hover:bg-[#00f9e3]/20 hover:text-slate-900'
-                                }`}
-                              >
-                                {module.display_name}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                // Multi-module groups (3+) - collapsible
                 return (
-                  <div key={group.id} className="mt-2">
+                  <div key={group.id} className="mt-4">
+                    {/* Group Header */}
                     <button
                       onClick={() => toggleGroup(group.id)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-[#033c3a] hover:bg-[#00f9e3]/20 rounded-md transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#033c3a]/60 uppercase tracking-wider hover:bg-[#00f9e3]/10 rounded-md transition-colors"
                     >
-                      <div className="flex items-center">
-                        {group.icon}
-                        {sidebarOpen && <span className="ml-3">{group.name}</span>}
-                      </div>
+                      {sidebarOpen && <span>{group.name}</span>}
                       {sidebarOpen && (
                         group.expanded ?
                           <ChevronDown className="w-4 h-4" /> :
@@ -337,21 +216,24 @@ export default function TenantNavigation({
                       )}
                     </button>
 
-                    {group.expanded && sidebarOpen && (
-                      <div className="ml-4 mt-1 space-y-1">
+                    {/* Group Modules */}
+                    {group.expanded && (
+                      <div className="mt-1 space-y-1">
                         {group.modules.map((module) => {
                           const isActive = pathname?.startsWith(`/modules/${module.name}`);
                           return (
                             <Link
                               key={module.id}
                               href={`/modules/${module.name}`}
-                              className={`block px-3 py-2 text-sm rounded-md transition-colors ${
+                              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                                 isActive
-                                  ? 'bg-white text-[#033c3a] font-medium shadow-sm'
+                                  ? 'bg-white text-[#033c3a] shadow-sm'
                                   : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                               }`}
+                              title={sidebarOpen ? undefined : module.display_name}
                             >
-                              {module.display_name}
+                              {getIconComponent(module.icon_name)}
+                              {sidebarOpen && <span className="ml-3">{module.display_name}</span>}
                             </Link>
                           );
                         })}
