@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
+import { createAdminClient } from '@/lib/supabase/server';
 
 // POST /api/powerbi/embed-token
 // Get PowerBI embed token for a specific report
@@ -8,20 +9,53 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reportId, workspaceId } = await request.json();
+    const { reportId } = await request.json();
 
-    console.log('PowerBI embed token request:', { reportId, workspaceId });
-
-    if (!reportId || !workspaceId) {
+    if (!reportId) {
       return NextResponse.json(
-        { error: 'reportId and workspaceId are required' },
+        { error: 'reportId is required' },
         { status: 400 }
       );
     }
+
+    // Get user's organization and workspace ID from database
+    const supabase = createAdminClient();
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userError || !user?.organization_id) {
+      console.error('Failed to get user organization:', userError);
+      return NextResponse.json(
+        { error: 'User not associated with an organization' },
+        { status: 404 }
+      );
+    }
+
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .select('powerbi_workspace_id')
+      .eq('id', user.organization_id)
+      .single();
+
+    if (orgError || !organization?.powerbi_workspace_id) {
+      console.error('Failed to get organization workspace:', orgError);
+      return NextResponse.json(
+        { error: 'Organization PowerBI workspace not configured. Please contact your administrator to set up the PowerBI Workspace ID in settings.' },
+        { status: 404 }
+      );
+    }
+
+    const workspaceId = organization.powerbi_workspace_id;
+
+    console.log('PowerBI embed token request:', { reportId, workspaceId, organizationId: user.organization_id });
 
     // Check if PowerBI credentials are configured
     const clientId = process.env.POWERBI_CLIENT_ID;

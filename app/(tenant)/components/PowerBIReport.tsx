@@ -45,7 +45,7 @@ export default function PowerBIReport({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reportId,
-          workspaceId,
+          // workspaceId is now fetched from organization settings server-side
         }),
       });
 
