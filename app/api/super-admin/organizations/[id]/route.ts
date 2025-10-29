@@ -182,3 +182,91 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user?.isSuperAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const { id: organizationId } = await params;
+    const supabase = createAdminClient();
+
+    // Get organization details first
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('subdomain')
+      .eq('id', organizationId)
+      .single();
+
+    if (!org) {
+      return NextResponse.json(
+        { error: 'Organization not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete organization (cascades to related tables via foreign keys)
+    const { error: deleteError } = await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', organizationId);
+
+    if (deleteError) {
+      console.error('Error deleting organization:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete organization' },
+        { status: 500 }
+      );
+    }
+
+    // Optionally delete Vercel domain (best effort - don't fail if it errors)
+    try {
+      const domainName = `${org.subdomain}.skillsintelligencesystem.co.uk`;
+      await fetch(
+        `https://api.vercel.com/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domainName}?teamId=${process.env.VERCEL_TEAM_ID}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${process.env.VERCEL_API_TOKEN}`,
+          },
+        }
+      );
+      console.log(`Deleted Vercel domain: ${domainName}`);
+    } catch (vercelError) {
+      console.warn('Failed to delete Vercel domain (non-critical):', vercelError);
+    }
+
+    // Optionally delete GoDaddy DNS record (best effort)
+    try {
+      await fetch(
+        `https://api.godaddy.com/v1/domains/skillsintelligencesystem.co.uk/records/CNAME/${org.subdomain}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `sso-key ${process.env.GODADDY_API_KEY}:${process.env.GODADDY_API_SECRET}`,
+          },
+        }
+      );
+      console.log(`Deleted GoDaddy DNS record: ${org.subdomain}`);
+    } catch (dnsError) {
+      console.warn('Failed to delete GoDaddy DNS record (non-critical):', dnsError);
+    }
+
+    return NextResponse.json({ success: true, message: 'Organization deleted successfully' });
+  } catch (error) {
+    console.error('Error in DELETE /api/super-admin/organizations/[id]:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
