@@ -362,14 +362,14 @@ export default function ManageReportsWrapper({
                 </div>
               </div>
 
-              {/* Deployed Reports */}
+              {/* Newly Deployed Reports */}
               {scanResults.deployed.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-green-900 mb-3 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Successfully Deployed ({scanResults.deployed.length})
+                    Newly Deployed ({scanResults.deployed.length})
                   </h3>
                   <div className="space-y-2">
                     {scanResults.deployed.map((item: any, index: number) => (
@@ -381,6 +381,33 @@ export default function ManageReportsWrapper({
                           Report: {item.report}
                         </div>
                         <div className="text-xs text-green-700 mt-1">
+                          Page: {item.page}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Already Deployed Reports */}
+              {scanResults.alreadyDeployed && scanResults.alreadyDeployed.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Already Deployed ({scanResults.alreadyDeployed.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {scanResults.alreadyDeployed.map((item: any, index: number) => (
+                      <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="font-medium text-blue-900">
+                          {item.module} → {item.tab}
+                        </div>
+                        <div className="text-sm text-blue-800 mt-1">
+                          Report: {item.report}
+                        </div>
+                        <div className="text-xs text-blue-700 mt-1">
                           Page: {item.page}
                         </div>
                       </div>

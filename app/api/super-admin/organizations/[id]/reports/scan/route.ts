@@ -197,6 +197,7 @@ export async function POST(
     const matchedTabs = [];
     const unmatchedItems = [];
     const deployed = [];
+    const alreadyDeployed = [];
     const failed = [];
 
     // Try to match each global tab to workspace reports+pages
@@ -332,6 +333,13 @@ export async function POST(
 
         // Step 3: Create tenant tab configuration
         const tabKey = `${orgModuleId}:${match.tabName}`;
+        const tabInfo = {
+          module: match.moduleName,
+          tab: match.tabName,
+          report: match.workspaceReportName,
+          page: match.pageDisplayName,
+        };
+
         if (!existingTabsSet.has(tabKey)) {
           const { data: tenantTab, error: tabError } = await supabase
             .from('tenant_module_tabs')
@@ -349,13 +357,10 @@ export async function POST(
             .single();
 
           if (tabError) throw tabError;
-
-          deployed.push({
-            module: match.moduleName,
-            tab: match.tabName,
-            report: match.workspaceReportName,
-            page: match.pageDisplayName,
-          });
+          deployed.push(tabInfo);
+        } else {
+          // Tab already exists - add to alreadyDeployed list
+          alreadyDeployed.push(tabInfo);
         }
       } catch (err: any) {
         console.error('Error deploying tab configuration:', match.tabName, err);
@@ -366,7 +371,7 @@ export async function POST(
       }
     }
 
-    console.log(`Deployment complete: ${deployed.length} tabs configured, ${failed.length} failed`);
+    console.log(`Deployment complete: ${deployed.length} newly deployed, ${alreadyDeployed.length} already deployed, ${failed.length} failed`);
 
     return NextResponse.json({
       success: true,
@@ -375,10 +380,12 @@ export async function POST(
         totalGlobalTabs: globalTabs?.length || 0,
         matched: matchedTabs.length,
         deployed: deployed.length,
+        alreadyDeployed: alreadyDeployed.length,
         failed: failed.length,
         unmatched: unmatchedItems.length,
       },
       deployed,
+      alreadyDeployed,
       failed,
       unmatched: unmatchedItems,
       organizationName: organization.name,
