@@ -10,6 +10,7 @@ interface ModuleTab {
   report_id: string; // PowerBI report ID
   workspace_id: string; // PowerBI workspace ID
   page_name: string | null; // Optional specific page
+  template_report_id: string; // Template report ID for embed token lookup
   source: 'global' | 'tenant';
 }
 
@@ -122,6 +123,7 @@ export default function ModulePage({
             workspaceId={selectedTab.workspace_id}
             reportName={selectedTab.tab_name}
             pageName={selectedTab.page_name}
+            templateReportId={selectedTab.template_report_id}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

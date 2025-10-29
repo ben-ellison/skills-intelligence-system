@@ -9,6 +9,7 @@ interface PowerBIReportProps {
   workspaceId: string;
   reportName: string;
   pageName?: string | null; // Optional: specific page to navigate to
+  templateReportId: string; // Template report ID for embed token lookup
 }
 
 interface ReportPage {
@@ -22,6 +23,7 @@ export default function PowerBIReport({
   workspaceId,
   reportName,
   pageName,
+  templateReportId,
 }: PowerBIReportProps) {
   const [embedUrl, setEmbedUrl] = useState<string>('');
   const [accessToken, setAccessToken] = useState<string>('');
@@ -33,7 +35,7 @@ export default function PowerBIReport({
 
   useEffect(() => {
     fetchEmbedToken();
-  }, [reportId, workspaceId]);
+  }, [templateReportId, workspaceId]);
 
   const fetchEmbedToken = async () => {
     try {
@@ -44,7 +46,7 @@ export default function PowerBIReport({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          templateReportId: reportId, // reportId prop is actually the template report ID
+          templateReportId: templateReportId,
           // The API will look up the organization's deployed instance
         }),
       });
