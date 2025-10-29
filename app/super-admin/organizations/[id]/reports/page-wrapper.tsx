@@ -170,7 +170,11 @@ export default function ManageReportsWrapper({
         );
         if (response.ok) {
           const data = await response.json();
-          setWorkspaceReports(data.reports || []);
+          // Sort reports alphabetically by name
+          const sortedReports = (data.reports || []).sort((a: any, b: any) =>
+            a.name.localeCompare(b.name)
+          );
+          setWorkspaceReports(sortedReports);
         }
       } catch (err) {
         console.error('Failed to fetch workspace reports:', err);
@@ -185,7 +189,11 @@ export default function ManageReportsWrapper({
     // Find the selected report and set its pages
     const selectedReport = workspaceReports.find(r => r.id === reportId);
     if (selectedReport) {
-      setReportPages(selectedReport.pages || []);
+      // Sort pages alphabetically by displayName
+      const sortedPages = (selectedReport.pages || []).sort((a: any, b: any) =>
+        (a.displayName || a.name).localeCompare(b.displayName || b.name)
+      );
+      setReportPages(sortedPages);
     } else {
       setReportPages([]);
     }
