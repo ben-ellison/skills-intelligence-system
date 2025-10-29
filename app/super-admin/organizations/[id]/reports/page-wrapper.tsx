@@ -245,11 +245,9 @@ export default function ManageReportsWrapper({
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium text-slate-900">
-                            {report.display_name || report.name}
+                            Report #{report.id.substring(0, 8)}
                           </div>
-                          {report.description && (
-                            <div className="text-xs text-slate-500 mt-1">{report.description}</div>
-                          )}
+                          <div className="text-xs text-slate-500 mt-1">Template: {report.template_report_id?.substring(0, 8)}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4">

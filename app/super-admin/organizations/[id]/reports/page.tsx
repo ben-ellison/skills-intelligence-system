@@ -75,9 +75,9 @@ export default async function ModuleTabConfigPage({
       id,
       template_report_id,
       powerbi_report_id,
-      name,
-      display_name,
-      deployment_status
+      deployment_status,
+      deployed_at,
+      deployed_by
     `)
     .eq('organization_id', organizationId)
     .eq('deployment_status', 'active');
