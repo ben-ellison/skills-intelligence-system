@@ -19,6 +19,7 @@ interface FieldMapping {
   schema_id: string;
   standard_field_name: string;
   standard_field_label: string;
+  table_name: string | null;
   mapped_field_name: string;
   field_type: string;
   is_required: boolean;
@@ -44,6 +45,7 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
   const [formData, setFormData] = useState({
     standardFieldName: '',
     standardFieldLabel: '',
+    tableName: '',
     mappedFieldName: '',
     fieldType: 'text',
     isRequired: false,
@@ -56,6 +58,7 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
     setFormData({
       standardFieldName: '',
       standardFieldLabel: '',
+      tableName: '',
       mappedFieldName: '',
       fieldType: 'text',
       isRequired: false,
@@ -71,6 +74,7 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
     setFormData({
       standardFieldName: mapping.standard_field_name,
       standardFieldLabel: mapping.standard_field_label,
+      tableName: mapping.table_name || '',
       mappedFieldName: mapping.mapped_field_name,
       fieldType: mapping.field_type,
       isRequired: mapping.is_required,
@@ -104,6 +108,7 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
         body: JSON.stringify({
           standardFieldName: formData.standardFieldName.toLowerCase().replace(/\s+/g, '_'),
           standardFieldLabel: formData.standardFieldLabel,
+          tableName: formData.tableName || null,
           mappedFieldName: formData.mappedFieldName,
           fieldType: formData.fieldType,
           isRequired: formData.isRequired,
@@ -226,7 +231,8 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
               <thead className="bg-slate-50">
                 <tr>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Standard Field</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Mapped To</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Table</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Mapped Field</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Type</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Usage</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
@@ -240,6 +246,15 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
                         <div className="font-medium text-slate-900">{mapping.standard_field_label}</div>
                         <code className="text-xs text-slate-500">{mapping.standard_field_name}</code>
                       </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {mapping.table_name ? (
+                        <code className="text-sm bg-purple-50 text-purple-800 px-2 py-1 rounded">
+                          {mapping.table_name}
+                        </code>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <code className="text-sm bg-slate-100 px-2 py-1 rounded">
@@ -355,21 +370,36 @@ export default function SchemaDetailWrapper({ schema, mappings }: SchemaDetailPr
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Mapped Field Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.mappedFieldName}
-                      onChange={(e) => setFormData({ ...formData, mappedFieldName: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono"
-                      placeholder="e.g., OpsMgr_Name, operations_manager, etc."
-                      disabled={isSubmitting}
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      The actual field name in the {schema.display_name} database
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Table Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.tableName}
+                        onChange={(e) => setFormData({ ...formData, tableName: e.target.value })}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono"
+                        placeholder="e.g., learners, employers, programmes"
+                        disabled={isSubmitting}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Database table name</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Mapped Field Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.mappedFieldName}
+                        onChange={(e) => setFormData({ ...formData, mappedFieldName: e.target.value })}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono"
+                        placeholder="e.g., OpsMgr_Name, operations_manager"
+                        disabled={isSubmitting}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Actual field name in database</p>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

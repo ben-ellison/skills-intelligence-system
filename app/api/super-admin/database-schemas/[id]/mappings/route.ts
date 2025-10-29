@@ -23,6 +23,7 @@ export async function POST(
     const {
       standardFieldName,
       standardFieldLabel,
+      tableName,
       mappedFieldName,
       fieldType,
       isRequired,
@@ -48,6 +49,7 @@ export async function POST(
         schema_id: schemaId,
         standard_field_name: standardFieldName,
         standard_field_label: standardFieldLabel,
+        table_name: tableName || null,
         mapped_field_name: mappedFieldName,
         field_type: fieldType || 'text',
         is_required: isRequired || false,

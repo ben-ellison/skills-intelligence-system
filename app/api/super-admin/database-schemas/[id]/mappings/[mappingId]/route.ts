@@ -23,6 +23,7 @@ export async function PATCH(
     const {
       standardFieldName,
       standardFieldLabel,
+      tableName,
       mappedFieldName,
       fieldType,
       isRequired,
@@ -39,6 +40,7 @@ export async function PATCH(
       .update({
         standard_field_name: standardFieldName,
         standard_field_label: standardFieldLabel,
+        table_name: tableName || null,
         mapped_field_name: mappedFieldName,
         field_type: fieldType,
         is_required: isRequired,
