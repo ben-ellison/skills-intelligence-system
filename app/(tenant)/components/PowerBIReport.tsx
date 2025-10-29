@@ -115,6 +115,7 @@ export default function PowerBIReport({
               visible: false, // Hide the bottom page tabs
             },
           },
+          navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
         },
       };
