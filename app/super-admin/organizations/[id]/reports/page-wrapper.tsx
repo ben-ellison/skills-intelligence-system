@@ -372,10 +372,17 @@ export default function ManageReportsWrapper({
                     Successfully Deployed ({scanResults.deployed.length})
                   </h3>
                   <div className="space-y-2">
-                    {scanResults.deployed.map((report: any, index: number) => (
+                    {scanResults.deployed.map((item: any, index: number) => (
                       <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <div className="font-medium text-green-900">{report.name}</div>
-                        <div className="text-xs text-green-700 mt-1 font-mono">{report.powerbi_report_id}</div>
+                        <div className="font-medium text-green-900">
+                          {item.module} → {item.tab}
+                        </div>
+                        <div className="text-sm text-green-800 mt-1">
+                          Report: {item.report}
+                        </div>
+                        <div className="text-xs text-green-700 mt-1">
+                          Page: {item.page}
+                        </div>
                       </div>
                     ))}
                   </div>
