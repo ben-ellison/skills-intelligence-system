@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,11 +14,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const masterWorkspaceId = process.env.POWERBI_MASTER_WORKSPACE_ID;
+    const supabase = createAdminClient();
+
+    // Get master workspace ID from system settings
+    const { data: settings } = await supabase
+      .from('system_settings')
+      .select('powerbi_master_workspace_id')
+      .single();
+
+    const masterWorkspaceId = settings?.powerbi_master_workspace_id;
 
     if (!masterWorkspaceId) {
       return NextResponse.json(
-        { error: 'Master workspace ID not configured. Please set POWERBI_MASTER_WORKSPACE_ID environment variable.' },
+        { error: 'Master workspace ID not configured. Please configure it in Super Admin → System Settings.' },
         { status: 500 }
       );
     }
