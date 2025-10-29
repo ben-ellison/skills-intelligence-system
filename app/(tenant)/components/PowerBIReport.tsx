@@ -12,12 +12,6 @@ interface PowerBIReportProps {
   templateReportId: string; // Template report ID for embed token lookup
 }
 
-interface ReportPage {
-  name: string;
-  displayName: string;
-  isActive: boolean;
-}
-
 export default function PowerBIReport({
   reportId,
   workspaceId,
@@ -29,8 +23,6 @@ export default function PowerBIReport({
   const [accessToken, setAccessToken] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pages, setPages] = useState<ReportPage[]>([]);
-  const [activePage, setActivePage] = useState<string>('');
   const reportRef = useRef<pbi.Embed | null>(null);
 
   useEffect(() => {
@@ -131,42 +123,19 @@ export default function PowerBIReport({
         console.log('Report loaded!');
 
         try {
-          // Get all pages from the report
-          const reportPages = await report.getPages();
-          console.log('Report pages:', reportPages);
-
-          const pageList: ReportPage[] = reportPages.map((page: any) => ({
-            name: page.name,
-            displayName: page.displayName,
-            isActive: page.isActive,
-          }));
-
-          setPages(pageList);
-
           // If a specific page was requested, navigate to it
           if (pageName) {
-            const targetPage = reportPages.find((page: any) => page.name === pageName);
+            const reportPages = await report.getPages();
+            const targetPage = reportPages.find((page: any) => page.name === pageName || page.displayName === pageName);
             if (targetPage) {
               await targetPage.setActive();
-              setActivePage(pageName);
               console.log('Navigated to specified page:', pageName);
             } else {
               console.warn('Specified page not found:', pageName);
-              // Fall back to active page
-              const active = pageList.find(p => p.isActive);
-              if (active) {
-                setActivePage(active.name);
-              }
-            }
-          } else {
-            // No specific page requested, use the active page
-            const active = pageList.find(p => p.isActive);
-            if (active) {
-              setActivePage(active.name);
             }
           }
         } catch (err) {
-          console.error('Error getting pages:', err);
+          console.error('Error navigating to page:', err);
         }
       });
 
@@ -177,24 +146,6 @@ export default function PowerBIReport({
     } catch (error) {
       console.error('Error embedding report:', error);
       setError('Failed to embed report: ' + (error instanceof Error ? error.message : String(error)));
-    }
-  };
-
-  const handlePageChange = async (pageName: string) => {
-    if (!reportRef.current) return;
-
-    try {
-      const report = reportRef.current as pbi.Report;
-      const pages = await report.getPages();
-      const targetPage = pages.find((page: any) => page.name === pageName);
-
-      if (targetPage) {
-        await targetPage.setActive();
-        setActivePage(pageName);
-        console.log('Switched to page:', pageName);
-      }
-    } catch (error) {
-      console.error('Error switching page:', error);
     }
   };
 
@@ -230,30 +181,9 @@ export default function PowerBIReport({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Page Navigation Tabs */}
-      {pages.length > 1 && (
-        <div className="bg-[#e6ffff] border-b border-[#0eafaa]">
-          <div className="px-6">
-            <div className="flex space-x-1 overflow-x-auto">
-              {pages.map((page) => (
-                <button
-                  key={page.name}
-                  onClick={() => handlePageChange(page.name)}
-                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activePage === page.name
-                      ? 'border-[#00e5c0] text-[#033c3a] bg-white'
-                      : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
-                  }`}
-                >
-                  {page.displayName}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* PowerBI Report Container */}
+      {/* Note: Page navigation tabs are handled at the module level in page.tsx */}
+      {/* Each module tab corresponds to a specific PowerBI report page */}
       <div id="powerbi-container" className="flex-1 w-full" />
     </div>
   );
