@@ -186,17 +186,17 @@ export default function TenantNavigation({
             <div className="px-4 text-sm text-slate-500">Loading modules...</div>
           ) : (
             <div className="space-y-1 px-2">
-              {/* Home Link */}
+              {/* Summary and Priorities Link */}
               <Link
-                href="/modules"
+                href="/summary"
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  pathname === '/modules'
+                  pathname === '/summary'
                     ? 'bg-white text-[#033c3a] shadow-sm'
                     : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                 }`}
               >
                 <Home className="w-5 h-5 mr-3" />
-                {sidebarOpen && <span>{organizationName || 'Home'}</span>}
+                {sidebarOpen && <span>Summary and Priorities</span>}
               </Link>
 
               {/* Module Groups */}
@@ -277,7 +277,7 @@ export default function TenantNavigation({
         {/* Top Bar */}
         <header className="h-16 bg-[#e6ffff] border-b border-[#0eafaa] flex items-center justify-between px-6">
           <h1 className="text-xl font-semibold text-slate-900">
-            {modules.find(m => pathname?.startsWith(`/modules/${m.name}`))?.display_name || organizationName || 'Dashboard'}
+            {organizationName || 'Dashboard'}
           </h1>
 
           <div className="flex items-center space-x-4">
