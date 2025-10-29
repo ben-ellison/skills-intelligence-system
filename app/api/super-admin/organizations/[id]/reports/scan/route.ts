@@ -348,7 +348,7 @@ export async function POST(
               module_id: orgModuleId,
               tab_name: match.tabName,
               sort_order: match.sortOrder,
-              page_name: match.pageName,
+              page_name: match.pageDisplayName, // Use display name instead of internal page ID
               organization_report_id: orgReportId,
               override_mode: 'add',
               is_active: true,
