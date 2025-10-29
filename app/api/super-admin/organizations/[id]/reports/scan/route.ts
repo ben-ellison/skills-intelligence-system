@@ -100,6 +100,9 @@ export async function POST(
 
     const { value: workspaceReports } = await reportsResponse.json();
 
+    console.log(`Found ${workspaceReports?.length || 0} reports in workspace:`,
+      workspaceReports?.map((r: any) => r.name) || []);
+
     // Get all template reports
     const { data: templateReports, error: templateError } = await supabase
       .from('powerbi_reports')
@@ -113,6 +116,9 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    console.log(`Found ${templateReports?.length || 0} template reports:`,
+      templateReports?.map((r: any) => r.name) || []);
 
     // Get already deployed reports for this organization
     const { data: existingDeployments } = await supabase
@@ -160,6 +166,9 @@ export async function POST(
       }
     }
 
+    console.log(`Matching complete: ${matches.length} matched, ${unmatched.length} unmatched`);
+    console.log('Matched reports:', matches.map(m => ({ template: m.templateName, workspace: m.powerbiReportName })));
+
     // Auto-deploy matched reports
     const deployed = [];
     const failed = [];
@@ -183,22 +192,30 @@ export async function POST(
           .single();
 
         if (deployError) {
-          console.error('Failed to deploy report:', match.templateName, deployError);
+          console.error('Failed to deploy report:', match.templateName, {
+            code: deployError.code,
+            message: deployError.message,
+            details: deployError.details,
+            hint: deployError.hint,
+          });
           failed.push({
             ...match,
-            error: deployError.message,
+            error: `${deployError.message}${deployError.code ? ` (${deployError.code})` : ''}${deployError.hint ? ` - ${deployError.hint}` : ''}`,
           });
         } else {
+          console.log('Successfully deployed:', match.templateName);
           deployed.push(deployedReport);
         }
       } catch (err: any) {
         console.error('Error deploying report:', match.templateName, err);
         failed.push({
           ...match,
-          error: err.message,
+          error: err.message || 'Unknown error occurred',
         });
       }
     }
+
+    console.log(`Deployment complete: ${deployed.length} deployed, ${failed.length} failed`);
 
     return NextResponse.json({
       success: true,

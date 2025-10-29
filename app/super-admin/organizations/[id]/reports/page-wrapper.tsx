@@ -43,6 +43,21 @@ interface ManageReportsProps {
   deployedReports: DeployedReport[];
 }
 
+interface ScanResult {
+  deployed: any[];
+  failed: any[];
+  unmatched: any[];
+  summary: {
+    totalWorkspaceReports: number;
+    matched: number;
+    deployed: number;
+    failed: number;
+    unmatched: number;
+  };
+  organizationName: string;
+  workspaceName: string;
+}
+
 export default function ManageReportsWrapper({
   organization,
   templateReports,
@@ -52,6 +67,8 @@ export default function ManageReportsWrapper({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [scanResults, setScanResults] = useState<ScanResult | null>(null);
+  const [showResultsModal, setShowResultsModal] = useState(false);
 
   const handleArchiveReport = async (reportId: string) => {
     if (!confirm('Are you sure you want to archive this report deployment?')) return;
@@ -79,6 +96,7 @@ export default function ManageReportsWrapper({
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
+    setScanResults(null);
 
     try {
       const response = await fetch(`/api/super-admin/organizations/${organization.id}/reports/scan`, {
@@ -93,11 +111,16 @@ export default function ManageReportsWrapper({
 
       const result = await response.json();
 
+      // Store results for the modal
+      setScanResults(result);
+      setShowResultsModal(true);
+
+      // Show summary message
       setSuccess(
-        `Workspace scanned successfully! ` +
+        `Workspace scanned! ` +
         `Deployed ${result.summary.deployed} report(s), ` +
         `${result.summary.failed} failed, ` +
-        `${result.summary.unmatched} unmatched.`
+        `${result.summary.unmatched} unmatched. Click to view details.`
       );
 
       router.refresh();
@@ -161,7 +184,17 @@ export default function ManageReportsWrapper({
 
         {success && (
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800 text-sm">{success}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-green-800 text-sm">{success}</p>
+              {scanResults && (
+                <button
+                  onClick={() => setShowResultsModal(true)}
+                  className="text-green-700 hover:text-green-900 text-sm font-medium underline"
+                >
+                  View Details
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -288,6 +321,128 @@ export default function ManageReportsWrapper({
           </div>
         </div>
       </div>
+
+      {/* Scan Results Modal */}
+      {showResultsModal && scanResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Scan Results</h2>
+                  <p className="text-slate-600 text-sm mt-1">
+                    {scanResults.workspaceName} • {scanResults.summary.totalWorkspaceReports} reports found
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowResultsModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-green-600 text-sm font-medium">Deployed</div>
+                  <div className="text-3xl font-bold text-green-900">{scanResults.summary.deployed}</div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-red-600 text-sm font-medium">Failed</div>
+                  <div className="text-3xl font-bold text-red-900">{scanResults.summary.failed}</div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-yellow-600 text-sm font-medium">Unmatched</div>
+                  <div className="text-3xl font-bold text-yellow-900">{scanResults.summary.unmatched}</div>
+                </div>
+              </div>
+
+              {/* Deployed Reports */}
+              {scanResults.deployed.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-green-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Successfully Deployed ({scanResults.deployed.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {scanResults.deployed.map((report: any, index: number) => (
+                      <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="font-medium text-green-900">{report.name}</div>
+                        <div className="text-xs text-green-700 mt-1 font-mono">{report.powerbi_report_id}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Failed Reports */}
+              {scanResults.failed.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-red-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Failed Deployments ({scanResults.failed.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {scanResults.failed.map((report: any, index: number) => (
+                      <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <div className="font-medium text-red-900">{report.templateName}</div>
+                        <div className="text-xs text-red-700 mt-1">PowerBI ID: {report.powerbiReportId}</div>
+                        <div className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded">
+                          <strong>Error:</strong> {report.error}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unmatched Reports */}
+              {scanResults.unmatched.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-yellow-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Unmatched Reports ({scanResults.unmatched.length})
+                  </h3>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+                    <p className="text-sm text-yellow-800">
+                      These reports exist in the PowerBI workspace but don't match any template report names.
+                      They won't be deployed unless you add them as templates or match their names.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {scanResults.unmatched.map((report: any, index: number) => (
+                      <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <div className="font-medium text-yellow-900">{report.powerbiReportName}</div>
+                        <div className="text-xs text-yellow-700 mt-1 font-mono">{report.powerbiReportId}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6">
+              <button
+                onClick={() => setShowResultsModal(false)}
+                className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
