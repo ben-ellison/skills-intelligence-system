@@ -233,15 +233,26 @@ function ReportModal({
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save report');
+        // Try to parse error message from response
+        let errorMessage = 'Failed to save report';
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          // Response is not JSON, use status text
+          errorMessage = `Failed to save report: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
+
+      // Parse success response
+      const data = await response.json();
 
       onSuccess();
       onClose();
     } catch (err) {
+      console.error('Error saving report:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
