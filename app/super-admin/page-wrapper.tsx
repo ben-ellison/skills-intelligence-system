@@ -84,6 +84,30 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
     }
   };
 
+  const handleDeleteOrganization = async (org: Organization) => {
+    if (!confirm(`Are you sure you want to delete "${org.name}"? This will also remove:\n- All users in this organization\n- All deployed reports and tabs\n- DNS and Vercel domain records\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/super-admin/organizations/${org.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(`Failed to delete organization: ${error.error || 'Unknown error'}`);
+        return;
+      }
+
+      alert(`Successfully deleted ${org.name}`);
+      refreshData();
+    } catch (error) {
+      console.error('Error deleting organization:', error);
+      alert('Failed to delete organization');
+    }
+  };
+
   const totalOrgs = data.organizations.length;
   const totalUsers = data.users.length;
   const activeSubscriptions = data.subscriptions.filter(s => s.status === 'active').length;
@@ -331,9 +355,15 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
                             setSelectedOrg(org);
                             setIsEditModalOpen(true);
                           }}
-                          className="text-slate-600 hover:text-slate-800 text-sm"
+                          className="text-slate-600 hover:text-slate-800 text-sm mr-3"
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrganization(org)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>
