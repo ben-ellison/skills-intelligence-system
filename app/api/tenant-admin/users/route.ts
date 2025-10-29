@@ -52,11 +52,15 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('organization_id', currentUser.organization_id)
-      .order('created_at', { ascending: false });
+      .order('email', { ascending: true });
 
     if (usersError) {
       console.error('Error fetching users:', usersError);
-      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+      return NextResponse.json({
+        error: 'Failed to fetch users',
+        details: usersError.message,
+        code: usersError.code
+      }, { status: 500 });
     }
 
     return NextResponse.json(users);
