@@ -18,8 +18,8 @@ export default async function DashboardPage() {
     redirect('/super-admin');
   }
 
-  // Redirect regular users and tenant admins to tenant modules
-  redirect('/modules');
+  // Redirect regular users and tenant admins to Summary page
+  redirect('/summary');
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
