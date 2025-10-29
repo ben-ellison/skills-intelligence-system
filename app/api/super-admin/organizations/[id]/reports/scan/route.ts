@@ -166,7 +166,7 @@ export async function POST(
     // Get already deployed reports and tabs
     const { data: existingDeployments } = await supabase
       .from('organization_powerbi_reports')
-      .select('id, template_report_id, powerbi_report_id, name')
+      .select('id, template_report_id, powerbi_report_id')
       .eq('organization_id', organizationId);
 
     const existingPowerBIIds = new Set(
