@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { data: existingSettings } = await supabase
       .from('system_settings')
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (existingSettings) {
       // Update existing settings
