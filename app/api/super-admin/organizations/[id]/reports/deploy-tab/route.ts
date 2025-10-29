@@ -55,12 +55,25 @@ export async function POST(
     }
 
     // Step 1: Ensure the report is deployed to organization_powerbi_reports
-    const { data: existingReport } = await supabase
+    // Check by powerbi_report_id first
+    let { data: existingReport } = await supabase
       .from('organization_powerbi_reports')
       .select('id')
       .eq('organization_id', organizationId)
       .eq('powerbi_report_id', reportId)
-      .single();
+      .maybeSingle();
+
+    // If not found by powerbi_report_id, check by template_report_id
+    if (!existingReport && templateReportId) {
+      const { data: existingByTemplate } = await supabase
+        .from('organization_powerbi_reports')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('template_report_id', templateReportId)
+        .maybeSingle();
+
+      existingReport = existingByTemplate;
+    }
 
     let orgReportId = existingReport?.id;
 
