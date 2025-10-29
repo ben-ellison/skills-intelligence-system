@@ -369,10 +369,20 @@ export default function ManageReportsWrapper({
                         )}
                         <td className="py-3 px-4 text-slate-700">{tab.tab_name}</td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {tab.powerbi_reports?.name || '-'}
+                          {isDeployed && orgTab?.organization_report_id ? (
+                            <span className="text-green-700">
+                              {deployedReports.find(r => r.id === orgTab.organization_report_id)?.powerbi_report_id?.substring(0, 20) || tab.powerbi_reports?.name || 'Deployed'}
+                            </span>
+                          ) : (
+                            tab.powerbi_reports?.name || '-'
+                          )}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {tab.page_name || '-'}
+                          {isDeployed && orgTab?.page_name ? (
+                            <span className="text-green-700">{orgTab.page_name}</span>
+                          ) : (
+                            tab.page_name || '-'
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           {isDeployed ? (
