@@ -192,6 +192,8 @@ export default function ManageReportsWrapper({
   };
 
   const handleSaveTabConfig = async () => {
+    console.log('handleSaveTabConfig called', { selectedReportId, selectedPageName });
+
     if (!selectedReportId || !selectedPageName) {
       setError('Please select both a report and a page');
       return;
@@ -201,25 +203,33 @@ export default function ManageReportsWrapper({
     setError(null);
 
     try {
+      const payload = {
+        moduleId: editingTab.orgModule?.id || null,
+        moduleName: editingTab.module.name,
+        tabName: editingTab.tab.tab_name,
+        reportId: selectedReportId,
+        pageName: selectedPageName,
+        templateReportId: editingTab.tab.report_id,
+        sortOrder: editingTab.tab.sort_order,
+      };
+
+      console.log('Sending deploy-tab request with payload:', payload);
+
       const response = await fetch(
         `/api/super-admin/organizations/${organization.id}/reports/deploy-tab`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            moduleId: editingTab.orgModule?.id || editingTab.module.id,
-            moduleName: editingTab.module.name,
-            tabName: editingTab.tab.tab_name,
-            reportId: selectedReportId,
-            pageName: selectedPageName,
-            templateReportId: editingTab.tab.report_id,
-            sortOrder: editingTab.tab.sort_order,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
+      console.log('Response status:', response.status);
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to save tab configuration');
       }
 
@@ -227,7 +237,8 @@ export default function ManageReportsWrapper({
       setShowEditModal(false);
       router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error in handleSaveTabConfig:', err);
+      setError(err.message || 'An error occurred while deploying the tab');
     } finally {
       setIsSubmitting(false);
     }
@@ -686,6 +697,13 @@ export default function ManageReportsWrapper({
 
             <div className="p-6">
               <div className="space-y-6">
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                )}
+
                 {/* Global Configuration Info */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-semibold text-blue-900 mb-2">Global Template Configuration</h3>
