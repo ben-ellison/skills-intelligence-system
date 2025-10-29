@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
-import ModuleTabConfigWrapper from './page-wrapper';
+import ManageReportsWrapper from './page-wrapper';
 
 export default async function ModuleTabConfigPage({
   params,
