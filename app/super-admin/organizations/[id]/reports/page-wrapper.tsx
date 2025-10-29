@@ -77,6 +77,8 @@ export default function ManageReportsWrapper({
   const [success, setSuccess] = useState<string | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult | null>(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [editingTab, setEditingTab] = useState<any | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleArchiveReport = async (reportId: string) => {
     if (!confirm('Are you sure you want to archive this report deployment?')) return;
@@ -137,6 +139,17 @@ export default function ManageReportsWrapper({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditTab = (module: any, tab: any, orgModule: any, orgTab: any) => {
+    setEditingTab({
+      module,
+      tab,
+      orgModule,
+      orgTab,
+      isDeployed: orgTab !== null,
+    });
+    setShowEditModal(true);
   };
 
   return (
@@ -281,7 +294,10 @@ export default function ManageReportsWrapper({
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <button className="text-blue-600 hover:text-blue-800 text-sm">
+                          <button
+                            onClick={() => handleEditTab(module, tab, orgModule, orgTab)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
                             Edit
                           </button>
                         </td>
@@ -559,6 +575,92 @@ export default function ManageReportsWrapper({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tab Modal */}
+      {showEditModal && editingTab && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {editingTab.isDeployed ? 'Edit' : 'Deploy'} Tab Configuration
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  {editingTab.module.display_name} → {editingTab.tab.tab_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Global Configuration Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">Global Template Configuration</h3>
+                  <div className="space-y-1 text-sm text-blue-800">
+                    <p><strong>Report:</strong> {editingTab.tab.powerbi_reports?.name || 'Not configured'}</p>
+                    <p><strong>Page:</strong> {editingTab.tab.page_name || 'Not configured'}</p>
+                  </div>
+                </div>
+
+                {/* Current Status */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Deployment Status
+                  </label>
+                  <div>
+                    {editingTab.isDeployed ? (
+                      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        ✓ Deployed
+                      </span>
+                    ) : (
+                      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
+                        Not Deployed - Click "Deploy Tab" below to activate
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {editingTab.isDeployed && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> This tab is already deployed. Advanced editing options will be available in a future update.
+                      For now, you can remove the deployment and re-scan to reconfigure.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-6 flex gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              {!editingTab.isDeployed && (
+                <button
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => {
+                    alert('Deploy functionality coming soon! Use the "Scan Workspace & Auto-Deploy" button to deploy tabs.');
+                    setShowEditModal(false);
+                  }}
+                >
+                  Deploy Tab
+                </button>
+              )}
             </div>
           </div>
         </div>
