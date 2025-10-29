@@ -26,8 +26,12 @@ export default function PowerBIReport({
   const reportRef = useRef<pbi.Embed | null>(null);
 
   useEffect(() => {
+    // Reset state when switching to a different report
+    setEmbedUrl('');
+    setAccessToken('');
+    reportRef.current = null;
     fetchEmbedToken();
-  }, [templateReportId, workspaceId]);
+  }, [reportId, templateReportId, workspaceId]);
 
   const fetchEmbedToken = async () => {
     try {
@@ -69,7 +73,7 @@ export default function PowerBIReport({
   useEffect(() => {
     if (!embedUrl || !accessToken) return;
     embedReport();
-  }, [embedUrl, accessToken, reportId]);
+  }, [embedUrl, accessToken]);
 
   // Navigate to a specific page when pageName changes
   useEffect(() => {
