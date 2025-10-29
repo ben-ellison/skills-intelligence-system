@@ -281,7 +281,6 @@ export async function POST(
               powerbi_report_id: match.workspaceReportId,
               powerbi_workspace_id: organization.powerbi_workspace_id,
               name: match.workspaceReportName,
-              display_name: match.workspaceReportName,
               deployment_status: 'active',
               deployed_at: new Date().toISOString(),
               deployed_by: session.user.email,
