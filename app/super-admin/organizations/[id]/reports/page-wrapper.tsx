@@ -244,6 +244,37 @@ export default function ManageReportsWrapper({
     }
   };
 
+  const handleRemoveTab = async (orgTab: any) => {
+    if (!confirm(`Are you sure you want to remove this tab deployment? This will undeploy the tab from the organization.`)) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/super-admin/organizations/${organization.id}/reports/remove-tab/${orgTab.id}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to remove tab');
+      }
+
+      setSuccess('Tab removed successfully!');
+      router.refresh();
+    } catch (err: any) {
+      console.error('Error removing tab:', err);
+      setError(err.message || 'Failed to remove tab');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-7xl mx-auto">
@@ -393,12 +424,22 @@ export default function ManageReportsWrapper({
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <button
-                            onClick={() => handleEditTab(module, tab, orgModule, orgTab)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleEditTab(module, tab, orgModule, orgTab)}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              {isDeployed ? 'View' : 'Deploy'}
+                            </button>
+                            {isDeployed && orgTab && (
+                              <button
+                                onClick={() => handleRemoveTab(orgTab)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
