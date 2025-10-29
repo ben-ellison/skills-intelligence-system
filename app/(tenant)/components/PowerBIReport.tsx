@@ -69,7 +69,33 @@ export default function PowerBIReport({
   useEffect(() => {
     if (!embedUrl || !accessToken) return;
     embedReport();
-  }, [embedUrl, accessToken]);
+  }, [embedUrl, accessToken, reportId]);
+
+  // Navigate to a specific page when pageName changes
+  useEffect(() => {
+    if (!reportRef.current || !pageName) return;
+
+    const navigateToPage = async () => {
+      try {
+        const report = reportRef.current as pbi.Report;
+        const reportPages = await report.getPages();
+        const targetPage = reportPages.find((page: any) =>
+          page.name === pageName || page.displayName === pageName
+        );
+
+        if (targetPage) {
+          await targetPage.setActive();
+          console.log('Navigated to page:', pageName);
+        } else {
+          console.warn('Page not found:', pageName);
+        }
+      } catch (err) {
+        console.error('Error navigating to page:', err);
+      }
+    };
+
+    navigateToPage();
+  }, [pageName]);
 
   const embedReport = async () => {
     const embedContainer = document.getElementById('powerbi-container');
