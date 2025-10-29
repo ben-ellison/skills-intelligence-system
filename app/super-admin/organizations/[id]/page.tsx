@@ -69,17 +69,17 @@ export default async function OrganizationProfilePage({
       id,
       powerbi_report_id,
       powerbi_workspace_id,
-      name,
-      display_name,
       deployment_status,
       deployed_at,
-      template_report:powerbi_reports (
+      template_report_id,
+      template_report:template_report_id (
         id,
         name,
-        display_name
+        description
       )
     `)
     .eq('organization_id', organizationId)
+    .eq('deployment_status', 'active')
     .order('deployed_at', { ascending: false });
 
   // Fetch AI summaries count and token usage

@@ -49,14 +49,13 @@ interface DeployedReport {
   id: string;
   powerbi_report_id: string;
   powerbi_workspace_id: string;
-  name: string;
-  display_name: string | null;
+  template_report_id: string;
   deployment_status: string;
   deployed_at: string | null;
   template_report: {
     id: string;
     name: string;
-    display_name: string | null;
+    description: string | null;
   } | null;
 }
 
@@ -480,11 +479,16 @@ function ReportsTab({ reports, organizationId }: { reports: DeployedReport[]; or
                 <tr key={report.id} className="border-b border-slate-100">
                   <td className="py-3 px-4">
                     <div className="font-medium text-slate-900">
-                      {report.display_name || report.name}
+                      {report.template_report?.name || 'Unknown Report'}
                     </div>
+                    {report.template_report?.description && (
+                      <div className="text-xs text-slate-500 mt-1">
+                        {report.template_report.description}
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-slate-600">
-                    {report.template_report?.display_name || report.template_report?.name}
+                    {report.template_report?.name || 'N/A'}
                   </td>
                   <td className="py-3 px-4">
                     <span
