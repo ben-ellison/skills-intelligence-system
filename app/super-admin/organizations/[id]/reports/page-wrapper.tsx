@@ -240,9 +240,11 @@ export default function ManageReportsWrapper({
                 </tr>
               </thead>
               <tbody>
-                {globalModules.map((module: any) => {
+                {globalModules.flatMap((module: any) => {
                   // Get tabs for this module from global tabs
                   const moduleTabs = globalTabs.filter((tab: any) => tab.module_name === module.name);
+
+                  if (moduleTabs.length === 0) return [];
 
                   return moduleTabs.map((tab: any, index: number) => {
                     // Find if there's an org-specific override for this tab
