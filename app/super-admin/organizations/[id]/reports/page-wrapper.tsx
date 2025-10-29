@@ -244,8 +244,8 @@ export default function ManageReportsWrapper({
     }
   };
 
-  const handleRemoveTab = async (orgTab: any) => {
-    if (!confirm(`Are you sure you want to remove this tab deployment? This will undeploy the tab from the organization.`)) {
+  const handleRemoveTab = async (module: any, tab: any, orgModule: any, orgTab: any) => {
+    if (!confirm(`Are you sure you want to remove this tab deployment? This will ${orgTab ? 'undeploy' : 'hide'} the tab from the organization.`)) {
       return;
     }
 
@@ -253,16 +253,40 @@ export default function ManageReportsWrapper({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/super-admin/organizations/${organization.id}/reports/remove-tab/${orgTab.id}`,
-        {
-          method: 'DELETE',
-        }
-      );
+      if (orgTab) {
+        // Tab has a tenant_module_tabs record - delete it
+        const response = await fetch(
+          `/api/super-admin/organizations/${organization.id}/reports/remove-tab/${orgTab.id}`,
+          {
+            method: 'DELETE',
+          }
+        );
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to remove tab');
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to remove tab');
+        }
+      } else {
+        // Tab doesn't have a tenant_module_tabs record but report is deployed
+        // Create a hidden tab record to hide it from the organization
+        const response = await fetch(
+          `/api/super-admin/organizations/${organization.id}/reports/hide-tab`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              moduleId: orgModule?.id,
+              moduleName: module.name,
+              tabName: tab.tab_name,
+              globalTabId: tab.id,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to hide tab');
+        }
       }
 
       setSuccess('Tab removed successfully!');
@@ -439,9 +463,9 @@ export default function ManageReportsWrapper({
                             >
                               {isDeployed ? 'View' : 'Deploy'}
                             </button>
-                            {orgTab && (
+                            {isDeployed && (
                               <button
-                                onClick={() => handleRemoveTab(orgTab)}
+                                onClick={() => handleRemoveTab(module, tab, orgModule, orgTab)}
                                 className="text-red-600 hover:text-red-800 text-sm"
                               >
                                 Remove
