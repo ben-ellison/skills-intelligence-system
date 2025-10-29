@@ -22,7 +22,7 @@ interface User {
   activated_at: string | null;
   last_login_at: string | null;
   primary_role_id: string | null;
-  user_roles: UserRole[];
+  user_roles?: UserRole[];
 }
 
 interface Role {
@@ -163,7 +163,7 @@ export default function UsersPage() {
     setSelectedUser(user);
     setEditName(user.name || '');
     setEditIsTenantAdmin(user.is_tenant_admin);
-    setEditRoleIds(user.user_roles.map((r) => r.global_role_id));
+    setEditRoleIds(user.user_roles?.map((r) => r.global_role_id) || []);
     setShowEditModal(true);
   };
 
@@ -334,7 +334,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {user.user_roles.length === 0 ? (
+                      {!user.user_roles || user.user_roles.length === 0 ? (
                         <span className="text-sm text-slate-400">No roles</span>
                       ) : (
                         user.user_roles.map((role) => (

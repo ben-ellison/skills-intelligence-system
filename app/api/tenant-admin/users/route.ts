@@ -29,28 +29,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get all users in the organization with their roles
+    // Get all users in the organization - simplified query for debugging
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select(`
-        id,
-        email,
-        name,
-        is_tenant_admin,
-        status,
-        invited_at,
-        activated_at,
-        last_login_at,
-        primary_role_id,
-        user_roles (
-          global_role_id,
-          global_roles (
-            id,
-            name,
-            display_name
-          )
-        )
-      `)
+      .select('*')
       .eq('organization_id', currentUser.organization_id)
       .order('email', { ascending: true });
 
