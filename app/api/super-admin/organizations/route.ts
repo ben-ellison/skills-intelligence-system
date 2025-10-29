@@ -122,6 +122,35 @@ export async function POST(request: NextRequest) {
       console.log(`Successfully initialized ${moduleResult} modules for organization ${newOrg.id}`);
     }
 
+    // Create GoDaddy DNS CNAME record for subdomain
+    try {
+      const godaddyResponse = await fetch(
+        `https://api.godaddy.com/v1/domains/skillsintelligencesystem.co.uk/records/CNAME/${subdomain}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `sso-key ${process.env.GODADDY_API_KEY}:${process.env.GODADDY_API_SECRET}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify([{
+            data: 'cname.vercel-dns.com',
+            ttl: 600,
+          }]),
+        }
+      );
+
+      if (!godaddyResponse.ok) {
+        const errorText = await godaddyResponse.text();
+        console.error('GoDaddy DNS creation failed:', errorText);
+        console.warn(`Organization created but DNS record creation failed for ${subdomain}.skillsintelligencesystem.co.uk`);
+      } else {
+        console.log(`Successfully created DNS CNAME record for ${subdomain}.skillsintelligencesystem.co.uk`);
+      }
+    } catch (dnsError) {
+      console.error('Error creating GoDaddy DNS record:', dnsError);
+      console.warn('Organization created but DNS record creation failed. Domain can be configured manually.');
+    }
+
     // Clone global tabs to this organization
     const { data: globalTabs } = await supabase
       .from('module_tabs')
