@@ -3,6 +3,61 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user is super admin
+    if (!session.user.isSuperAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Super Admin access required' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+
+    // Get all users with their organizations and roles
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        name,
+        is_super_admin,
+        is_tenant_admin,
+        status,
+        last_login_at,
+        organization_id,
+        organizations (
+          id,
+          name,
+          subdomain
+        ),
+        user_roles (
+          global_role_id,
+          global_roles (
+            id,
+            name,
+            display_name
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (usersError) {
+      console.error('Error fetching users:', usersError);
+      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    }
+
+    return NextResponse.json(users);
+  } catch (error) {
+    console.error('Error in GET /api/super-admin/users:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication and Super Admin status

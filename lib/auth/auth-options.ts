@@ -18,6 +18,35 @@ export const authOptions: NextAuthOptions = {
       if (account && profile) {
         token.sub = account.providerAccountId; // Auth0 user ID
         token.email = (profile as any).email;
+
+        // Sync user to database
+        const supabase = createAdminClient();
+        try {
+          // Try to find existing user by email first
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, auth0_user_id')
+            .eq('email', token.email)
+            .single();
+
+          if (existingUser) {
+            // User exists - update auth0_user_id if not set
+            if (!existingUser.auth0_user_id) {
+              await supabase
+                .from('users')
+                .update({
+                  auth0_user_id: token.sub,
+                  name: (profile as any).name || null,
+                  activated_at: new Date().toISOString(),
+                  status: 'active'
+                })
+                .eq('id', existingUser.id);
+              console.log('Updated existing user with auth0_user_id:', token.email);
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing user to database:', error);
+        }
       }
       return token;
     },
