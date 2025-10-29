@@ -65,13 +65,15 @@ export default function UsersPage() {
       const response = await fetch('/api/tenant-admin/users');
 
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData, null, 2));
       }
 
       const data = await response.json();
       setUsers(data);
     } catch (err: any) {
       setError(err.message);
+      console.error('Fetch users error:', err);
     } finally {
       setLoading(false);
     }
