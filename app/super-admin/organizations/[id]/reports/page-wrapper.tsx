@@ -455,8 +455,17 @@ export default function ManageReportsWrapper({
                   <div className="space-y-2">
                     {scanResults.unmatched.map((report: any, index: number) => (
                       <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <div className="font-medium text-yellow-900">{report.powerbiReportName}</div>
-                        <div className="text-xs text-yellow-700 mt-1 font-mono">{report.powerbiReportId}</div>
+                        <div className="font-medium text-yellow-900">{report.reportName}</div>
+                        {report.type === 'page_not_found' && (
+                          <div className="text-sm text-yellow-800 mt-1">
+                            Expected page "{report.expectedPage}" not found in report
+                          </div>
+                        )}
+                        {report.pages && report.pages.length > 0 && (
+                          <div className="text-xs text-yellow-700 mt-1">
+                            Pages: {report.pages.map((p: any) => p.displayName || p.name).join(', ')}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
