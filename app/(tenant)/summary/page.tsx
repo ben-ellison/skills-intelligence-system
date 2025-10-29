@@ -20,7 +20,7 @@ export default function SummaryPage() {
                   : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
               }`}
             >
-              Executive Dashboard
+              Immediate Priorities
             </button>
             <button
               onClick={() => setActiveTab('ai')}
@@ -30,7 +30,7 @@ export default function SummaryPage() {
                   : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
               }`}
             >
-              AI Summary & Priorities
+              AiVII Summary
             </button>
           </div>
         </div>
@@ -55,7 +55,7 @@ function PowerBIReportTab() {
     <div className="flex items-center justify-center h-full p-8">
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-2xl">
         <h3 className="text-lg font-semibold text-blue-900 mb-2">
-          Configure Executive Dashboard
+          Configure Immediate Priorities Dashboard
         </h3>
         <p className="text-blue-800 mb-4">
           To display a PowerBI report here, you need to:
@@ -88,7 +88,7 @@ function AISummaryTab() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">
-          AI Summary & Priorities
+          AiVII Summary
         </h2>
 
         <div className="space-y-6">
