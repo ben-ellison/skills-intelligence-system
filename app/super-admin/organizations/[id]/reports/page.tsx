@@ -106,11 +106,12 @@ export default async function ModuleTabConfigPage({
     .eq('is_active', true);
 
   return (
-    <ModuleTabConfigWrapper
+    <ManageReportsWrapper
       organization={organization}
+      templateReports={[]}
+      deployedReports={deployedReports || []}
       globalModules={globalModules || []}
       globalTabs={globalTabs || []}
-      deployedReports={deployedReports || []}
       orgModules={orgModules || []}
       orgTabs={orgTabs || []}
     />

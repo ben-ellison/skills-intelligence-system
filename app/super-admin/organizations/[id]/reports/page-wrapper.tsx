@@ -41,6 +41,10 @@ interface ManageReportsProps {
   organization: Organization;
   templateReports: TemplateReport[];
   deployedReports: DeployedReport[];
+  globalModules?: any[];
+  globalTabs?: any[];
+  orgModules?: any[];
+  orgTabs?: any[];
 }
 
 interface ScanResult {
@@ -62,6 +66,10 @@ export default function ManageReportsWrapper({
   organization,
   templateReports,
   deployedReports,
+  globalModules = [],
+  globalTabs = [],
+  orgModules = [],
+  orgTabs = [],
 }: ManageReportsProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,6 +222,75 @@ export default function ManageReportsWrapper({
             </div>
           </div>
         )}
+
+        {/* Module & Tab Configuration Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">Module & Tab Configuration</h2>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Module</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Tab</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Report</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Page</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {globalModules.map((module: any) => {
+                  // Get tabs for this module from global tabs
+                  const moduleTabs = globalTabs.filter((tab: any) => tab.module_name === module.name);
+
+                  return moduleTabs.map((tab: any, index: number) => {
+                    // Find if there's an org-specific override for this tab
+                    const orgModule = orgModules.find((om: any) => om.name === module.name);
+                    const orgTab = orgModule ? orgTabs.find((ot: any) =>
+                      ot.module_id === orgModule.id && ot.tab_name === tab.tab_name
+                    ) : null;
+
+                    const isDeployed = orgTab !== null;
+
+                    return (
+                      <tr key={`${module.id}-${tab.id}`} className="border-t border-slate-100 hover:bg-slate-50">
+                        {index === 0 && (
+                          <td className="py-3 px-4 font-medium text-slate-900" rowSpan={moduleTabs.length}>
+                            {module.display_name}
+                          </td>
+                        )}
+                        <td className="py-3 px-4 text-slate-700">{tab.tab_name}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">
+                          {tab.powerbi_reports?.name || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600">
+                          {tab.page_name || '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {isDeployed ? (
+                            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Deployed
+                            </span>
+                          ) : (
+                            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                              Not Deployed
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <button className="text-blue-600 hover:text-blue-800 text-sm">
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* Deployed Reports Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
