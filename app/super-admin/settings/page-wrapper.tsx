@@ -14,9 +14,10 @@ interface SystemSettings {
 
 interface SettingsPageWrapperProps {
   initialSettings: SystemSettings | null;
+  tableExists: boolean;
 }
 
-export default function SettingsPageWrapper({ initialSettings }: SettingsPageWrapperProps) {
+export default function SettingsPageWrapper({ initialSettings, tableExists }: SettingsPageWrapperProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +90,44 @@ export default function SettingsPageWrapper({ initialSettings }: SettingsPageWra
             Configure global system settings and PowerBI integration
           </p>
         </div>
+
+        {/* Migration Required Warning */}
+        {!tableExists && (
+          <div className="mb-6 bg-amber-50 border border-amber-500 rounded-lg p-6">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 mb-2">Database Migration Required</h3>
+                <p className="text-sm text-amber-800 mb-3">
+                  The system_settings table needs to be created in your database. Please run the following SQL in your Supabase SQL Editor:
+                </p>
+                <div className="bg-amber-100 border border-amber-300 rounded p-3 font-mono text-xs overflow-x-auto">
+                  <pre className="text-amber-900">{`CREATE TABLE IF NOT EXISTS system_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  powerbi_master_workspace_id TEXT,
+  powerbi_master_workspace_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow service role full access to system_settings"
+  ON system_settings FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+INSERT INTO system_settings (powerbi_master_workspace_id, powerbi_master_workspace_name)
+VALUES (null, null);`}</pre>
+                </div>
+                <p className="text-sm text-amber-800 mt-3">
+                  After running this SQL, refresh this page.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Success/Error Messages */}
         {success && (

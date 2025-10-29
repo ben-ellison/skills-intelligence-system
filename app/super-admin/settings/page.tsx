@@ -20,10 +20,11 @@ export default async function SuperAdminSettingsPage() {
   const supabase = createAdminClient();
 
   // Fetch system settings
-  const { data: settings } = await supabase
+  const { data: settings, error } = await supabase
     .from('system_settings')
     .select('*')
     .single();
 
-  return <SettingsPageWrapper initialSettings={settings} />;
+  // If table doesn't exist, pass null (the UI will show instructions)
+  return <SettingsPageWrapper initialSettings={settings} tableExists={!error || error.code !== '42P01'} />;
 }
