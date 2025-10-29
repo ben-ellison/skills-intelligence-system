@@ -369,19 +369,16 @@ export default function ManageReportsWrapper({
                         )}
                         <td className="py-3 px-4 text-slate-700">{tab.tab_name}</td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {isDeployed && orgTab?.organization_report_id ? (
-                            <span className="text-green-700">
-                              {deployedReports.find(r => r.id === orgTab.organization_report_id)?.powerbi_report_id?.substring(0, 20) || tab.powerbi_reports?.name || 'Deployed'}
-                            </span>
-                          ) : (
-                            tab.powerbi_reports?.name || '-'
+                          {tab.powerbi_reports?.name || '-'}
+                          {isDeployed && (
+                            <span className="ml-2 text-xs text-green-700">(deployed)</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
                           {isDeployed && orgTab?.page_name ? (
-                            <span className="text-green-700">{orgTab.page_name}</span>
+                            <span className="text-green-700 font-medium">{orgTab.page_name}</span>
                           ) : (
-                            tab.page_name || '-'
+                            <span className="text-slate-400">{tab.page_name || 'Not configured'}</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
