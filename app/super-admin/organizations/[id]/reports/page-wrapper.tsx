@@ -79,6 +79,10 @@ export default function ManageReportsWrapper({
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [editingTab, setEditingTab] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [workspaceReports, setWorkspaceReports] = useState<any[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string>('');
+  const [selectedPageName, setSelectedPageName] = useState<string>('');
+  const [reportPages, setReportPages] = useState<any[]>([]);
 
   const handleArchiveReport = async (reportId: string) => {
     if (!confirm('Are you sure you want to archive this report deployment?')) return;
@@ -141,7 +145,7 @@ export default function ManageReportsWrapper({
     }
   };
 
-  const handleEditTab = (module: any, tab: any, orgModule: any, orgTab: any) => {
+  const handleEditTab = async (module: any, tab: any, orgModule: any, orgTab: any) => {
     setEditingTab({
       module,
       tab,
@@ -149,7 +153,84 @@ export default function ManageReportsWrapper({
       orgTab,
       isDeployed: orgTab !== null,
     });
+
+    // Reset form state
+    setSelectedReportId('');
+    setSelectedPageName('');
+    setReportPages([]);
+    setWorkspaceReports([]);
+
     setShowEditModal(true);
+
+    // Fetch workspace reports for the dropdown
+    if (organization.powerbi_workspace_id) {
+      try {
+        const response = await fetch(
+          `/api/super-admin/organizations/${organization.id}/reports/workspace-reports`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setWorkspaceReports(data.reports || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch workspace reports:', err);
+      }
+    }
+  };
+
+  const handleReportChange = (reportId: string) => {
+    setSelectedReportId(reportId);
+    setSelectedPageName('');
+
+    // Find the selected report and set its pages
+    const selectedReport = workspaceReports.find(r => r.id === reportId);
+    if (selectedReport) {
+      setReportPages(selectedReport.pages || []);
+    } else {
+      setReportPages([]);
+    }
+  };
+
+  const handleSaveTabConfig = async () => {
+    if (!selectedReportId || !selectedPageName) {
+      setError('Please select both a report and a page');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/super-admin/organizations/${organization.id}/reports/deploy-tab`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            moduleId: editingTab.orgModule?.id || editingTab.module.id,
+            moduleName: editingTab.module.name,
+            tabName: editingTab.tab.tab_name,
+            reportId: selectedReportId,
+            pageName: selectedPageName,
+            templateReportId: editingTab.tab.report_id,
+            sortOrder: editingTab.tab.sort_order,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save tab configuration');
+      }
+
+      setSuccess('Tab configuration saved successfully!');
+      setShowEditModal(false);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -632,11 +713,57 @@ export default function ManageReportsWrapper({
                   </div>
                 </div>
 
+                {/* Report Selection */}
+                {!editingTab.isDeployed && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Select Report from Workspace
+                      </label>
+                      <select
+                        value={selectedReportId}
+                        onChange={(e) => handleReportChange(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">-- Select a Report --</option>
+                        {workspaceReports.map((report: any) => (
+                          <option key={report.id} value={report.id}>
+                            {report.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Select Page
+                      </label>
+                      <select
+                        value={selectedPageName}
+                        onChange={(e) => setSelectedPageName(e.target.value)}
+                        disabled={!selectedReportId || reportPages.length === 0}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">-- Select a Page --</option>
+                        {reportPages.map((page: any) => (
+                          <option key={page.name} value={page.displayName}>
+                            {page.displayName}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedReportId && reportPages.length === 0 && (
+                        <p className="mt-2 text-sm text-amber-600">
+                          No pages found in this report
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 {editingTab.isDeployed && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <p className="text-sm text-amber-800">
-                      <strong>Note:</strong> This tab is already deployed. Advanced editing options will be available in a future update.
-                      For now, you can remove the deployment and re-scan to reconfigure.
+                      <strong>Note:</strong> This tab is already deployed. To change the configuration, you'll need to remove it first and redeploy.
                     </p>
                   </div>
                 )}
@@ -652,13 +779,11 @@ export default function ManageReportsWrapper({
               </button>
               {!editingTab.isDeployed && (
                 <button
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  onClick={() => {
-                    alert('Deploy functionality coming soon! Use the "Scan Workspace & Auto-Deploy" button to deploy tabs.');
-                    setShowEditModal(false);
-                  }}
+                  onClick={handleSaveTabConfig}
+                  disabled={isSubmitting || !selectedReportId || !selectedPageName}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
-                  Deploy Tab
+                  {isSubmitting ? 'Deploying...' : 'Deploy Tab'}
                 </button>
               )}
             </div>
