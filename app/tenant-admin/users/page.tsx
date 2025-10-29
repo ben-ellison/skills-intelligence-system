@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { UserPlus, Mail, Calendar, Shield, Users as UsersIcon } from 'lucide-react';
+import { UserPlus, Mail, Calendar, Shield, Users as UsersIcon, X } from 'lucide-react';
 
 interface UserRole {
   global_role_id: string;
@@ -25,13 +25,38 @@ interface User {
   user_roles: UserRole[];
 }
 
+interface Role {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Invite form state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteIsTenantAdmin, setInviteIsTenantAdmin] = useState(false);
+  const [inviteRoleIds, setInviteRoleIds] = useState<string[]>([]);
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+
+  // Edit form state
+  const [editName, setEditName] = useState('');
+  const [editIsTenantAdmin, setEditIsTenantAdmin] = useState(false);
+  const [editRoleIds, setEditRoleIds] = useState<string[]>([]);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   const fetchUsers = async () => {
@@ -49,6 +74,127 @@ export default function UsersPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('/api/tenant-admin/roles');
+      if (!response.ok) throw new Error('Failed to fetch roles');
+      const data = await response.json();
+      setRoles(data);
+    } catch (err: any) {
+      console.error('Error fetching roles:', err);
+    }
+  };
+
+  const handleInviteUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteSubmitting(true);
+
+    try {
+      const response = await fetch('/api/tenant-admin/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail,
+          name: inviteName,
+          isTenantAdmin: inviteIsTenantAdmin,
+          roleIds: inviteRoleIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to invite user');
+      }
+
+      // Reset form
+      setInviteEmail('');
+      setInviteName('');
+      setInviteIsTenantAdmin(false);
+      setInviteRoleIds([]);
+      setShowInviteModal(false);
+
+      // Refresh users list
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setEditSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/tenant-admin/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          isTenantAdmin: editIsTenantAdmin,
+          roleIds: editRoleIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update user');
+      }
+
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setEditName(user.name || '');
+    setEditIsTenantAdmin(user.is_tenant_admin);
+    setEditRoleIds(user.user_roles.map((r) => r.global_role_id));
+    setShowEditModal(true);
+  };
+
+  const handleStatusToggle = async (user: User) => {
+    const newStatus = user.status === 'active' ? 'suspended' : 'active';
+
+    try {
+      const response = await fetch(`/api/tenant-admin/users/${user.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update status');
+      }
+
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const toggleRole = (roleId: string, isInvite: boolean) => {
+    if (isInvite) {
+      setInviteRoleIds((prev) =>
+        prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+      );
+    } else {
+      setEditRoleIds((prev) =>
+        prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+      );
     }
   };
 
@@ -109,10 +255,7 @@ export default function UsersPage() {
           </p>
         </div>
         <button
-          onClick={() => {
-            // TODO: Open invite user modal
-            alert('Invite user functionality coming soon');
-          }}
+          onClick={() => setShowInviteModal(true)}
           className="flex items-center px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
         >
           <UserPlus className="h-5 w-5 mr-2" />
@@ -211,19 +354,13 @@ export default function UsersPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
-                      onClick={() => {
-                        // TODO: Open edit user modal
-                        alert('Edit user functionality coming soon');
-                      }}
+                      onClick={() => openEditModal(user)}
                       className="text-[#00e5c0] hover:text-[#0eafaa] mr-4"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => {
-                        // TODO: Implement suspend/activate
-                        alert('Suspend/Activate functionality coming soon');
-                      }}
+                      onClick={() => handleStatusToggle(user)}
                       className="text-slate-600 hover:text-slate-900"
                     >
                       {user.status === 'active' ? 'Suspend' : 'Activate'}
@@ -235,6 +372,202 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Invite User Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Invite User</h3>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleInviteUser} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
+                  placeholder="user@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={inviteIsTenantAdmin}
+                    onChange={(e) => setInviteIsTenantAdmin(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Make Tenant Admin</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Assign Roles
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2">
+                  {roles.map((role) => (
+                    <label key={role.id} className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={inviteRoleIds.includes(role.id)}
+                        onChange={() => toggleRole(role.id, true)}
+                        className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                      />
+                      <div className="ml-2">
+                        <div className="text-sm text-slate-900">{role.display_name}</div>
+                        {role.description && (
+                          <div className="text-xs text-slate-500">{role.description}</div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviteSubmitting}
+                  className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] disabled:opacity-50"
+                >
+                  {inviteSubmitting ? 'Inviting...' : 'Invite User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-slate-900">Edit User</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditUser} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={selectedUser.email}
+                  disabled
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editIsTenantAdmin}
+                    onChange={(e) => setEditIsTenantAdmin(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Make Tenant Admin</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Assign Roles
+                </label>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2">
+                  {roles.map((role) => (
+                    <label key={role.id} className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={editRoleIds.includes(role.id)}
+                        onChange={() => toggleRole(role.id, false)}
+                        className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                      />
+                      <div className="ml-2">
+                        <div className="text-sm text-slate-900">{role.display_name}</div>
+                        {role.description && (
+                          <div className="text-xs text-slate-500">{role.description}</div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] disabled:opacity-50"
+                >
+                  {editSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
