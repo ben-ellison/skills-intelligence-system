@@ -811,8 +811,8 @@ export default function ManageReportsWrapper({
                   </div>
                 </div>
 
-                {/* Report Selection */}
-                {!editingTab.isDeployed && (
+                {/* Report Selection - Show if tab has orgTab with page_name or no orgTab at all */}
+                {(!editingTab.isDeployed || !editingTab.orgTab?.page_name) && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -830,6 +830,9 @@ export default function ManageReportsWrapper({
                           </option>
                         ))}
                       </select>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Select which PowerBI report from the workspace should be used for this tab
+                      </p>
                     </div>
 
                     <div>
@@ -854,14 +857,19 @@ export default function ManageReportsWrapper({
                           No pages found in this report
                         </p>
                       )}
+                      {!selectedReportId && (
+                        <p className="mt-2 text-sm text-slate-600">
+                          Select a report first to see available pages
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
 
-                {editingTab.isDeployed && (
+                {editingTab.isDeployed && editingTab.orgTab?.page_name && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <p className="text-sm text-amber-800">
-                      <strong>Note:</strong> This tab is already deployed. To change the configuration, you'll need to remove it first and redeploy.
+                      <strong>Note:</strong> This tab is already deployed with page configuration. To change the configuration, you'll need to remove it first and redeploy.
                     </p>
                   </div>
                 )}
@@ -875,13 +883,13 @@ export default function ManageReportsWrapper({
               >
                 Cancel
               </button>
-              {!editingTab.isDeployed && (
+              {(!editingTab.isDeployed || !editingTab.orgTab?.page_name) && (
                 <button
                   onClick={handleSaveTabConfig}
                   disabled={isSubmitting || !selectedReportId || !selectedPageName}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Deploying...' : 'Deploy Tab'}
+                  {isSubmitting ? 'Deploying...' : editingTab.orgTab ? 'Update Configuration' : 'Deploy Tab'}
                 </button>
               )}
             </div>
