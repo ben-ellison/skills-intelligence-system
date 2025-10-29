@@ -227,8 +227,8 @@ export default function EditTabModal({ tab, reports, modules, onClose, onTabUpda
               >
                 <option value="">-- Default (First Page) --</option>
                 {reportPages.map((page: any) => (
-                  <option key={page.name} value={page.name}>
-                    {page.displayName}
+                  <option key={page.name} value={page.displayName || page.name}>
+                    {page.displayName || page.name}
                   </option>
                 ))}
               </select>

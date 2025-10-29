@@ -11,8 +11,8 @@ export default function LandingPage() {
               Skills Intelligence System
             </h1>
             <Link
-              href="/api/auth/signin"
-              className="px-6 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors font-medium"
+              href="/signin"
+              className="px-6 py-2 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors font-medium"
             >
               Sign In
             </Link>
@@ -32,8 +32,8 @@ export default function LandingPage() {
           </p>
           <div className="flex gap-4 justify-center">
             <Link
-              href="/api/auth/signin"
-              className="px-8 py-3 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors font-semibold text-lg"
+              href="/signin"
+              className="px-8 py-3 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors font-semibold text-lg"
             >
               Get Started
             </Link>
@@ -129,7 +129,7 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-slate-400">
                 <li>
-                  <Link href="/api/auth/signin" className="hover:text-white transition-colors">
+                  <Link href="/signin" className="hover:text-white transition-colors">
                     Sign In
                   </Link>
                 </li>
