@@ -373,6 +373,82 @@ export async function POST(
 
     console.log(`Deployment complete: ${deployed.length} newly deployed, ${alreadyDeployed.length} already deployed, ${failed.length} failed`);
 
+    // ========================================
+    // IMMEDIATE PRIORITIES REPORTS DEPLOYMENT
+    // ========================================
+    // Auto-detect and deploy reports with "Immediate Priorities" in the name
+    // These are role-specific reports shown on the Summary page
+
+    const priorityDeployed = [];
+    const priorityAlreadyDeployed = [];
+    const priorityFailed = [];
+
+    // Find all "Immediate Priorities" reports in the workspace
+    const priorityReports = reportsWithPages.filter((report: any) =>
+      report.name.toLowerCase().includes('immediate priorities')
+    );
+
+    console.log(`Found ${priorityReports.length} Immediate Priorities reports in workspace`);
+
+    for (const workspaceReport of priorityReports) {
+      try {
+        // Find the template report in powerbi_reports by name
+        const { data: templateReport } = await supabase
+          .from('powerbi_reports')
+          .select('id')
+          .ilike('name', workspaceReport.name)
+          .single();
+
+        if (!templateReport) {
+          priorityFailed.push({
+            reportName: workspaceReport.name,
+            error: 'Template report not found in PowerBI Reports Library',
+          });
+          continue;
+        }
+
+        // Check if already deployed
+        const existing = existingDeployments?.find(
+          d => d.powerbi_report_id === workspaceReport.id
+        );
+
+        if (existing) {
+          priorityAlreadyDeployed.push({
+            reportName: workspaceReport.name,
+          });
+          continue;
+        }
+
+        // Deploy the priority report
+        const { error: deployError } = await supabase
+          .from('organization_powerbi_reports')
+          .insert({
+            organization_id: organizationId,
+            template_report_id: templateReport.id,
+            powerbi_report_id: workspaceReport.id,
+            powerbi_workspace_id: organization.powerbi_workspace_id,
+            name: workspaceReport.name,
+            deployment_status: 'active',
+            deployed_at: new Date().toISOString(),
+            deployed_by: session.user.email,
+          });
+
+        if (deployError) throw deployError;
+
+        priorityDeployed.push({
+          reportName: workspaceReport.name,
+        });
+      } catch (err: any) {
+        console.error('Error deploying priority report:', workspaceReport.name, err);
+        priorityFailed.push({
+          reportName: workspaceReport.name,
+          error: err.message || 'Unknown error',
+        });
+      }
+    }
+
+    console.log(`Priority reports: ${priorityDeployed.length} deployed, ${priorityAlreadyDeployed.length} already deployed, ${priorityFailed.length} failed`);
+
     return NextResponse.json({
       success: true,
       summary: {
@@ -383,11 +459,17 @@ export async function POST(
         alreadyDeployed: alreadyDeployed.length,
         failed: failed.length,
         unmatched: unmatchedItems.length,
+        priorityReportsDeployed: priorityDeployed.length,
+        priorityReportsAlreadyDeployed: priorityAlreadyDeployed.length,
+        priorityReportsFailed: priorityFailed.length,
       },
       deployed,
       alreadyDeployed,
       failed,
       unmatched: unmatchedItems,
+      priorityDeployed,
+      priorityAlreadyDeployed,
+      priorityFailed,
       organizationName: organization.name,
       workspaceName: organization.powerbi_workspace_name,
     });
