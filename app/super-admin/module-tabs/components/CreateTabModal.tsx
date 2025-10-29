@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface Report {
@@ -31,6 +31,40 @@ export default function CreateTabModal({ reports, modules, onClose, onTabCreated
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reportPages, setReportPages] = useState<any[]>([]);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+
+  // Fetch pages when report changes
+  useEffect(() => {
+    if (formData.report_id) {
+      fetchReportPages(formData.report_id);
+    } else {
+      setReportPages([]);
+    }
+  }, [formData.report_id]);
+
+  const fetchReportPages = async (reportId: string) => {
+    setIsLoadingPages(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/super-admin/reports/${reportId}/pages`);
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to load report pages');
+      }
+
+      const data = await response.json();
+      setReportPages(data.pages || []);
+    } catch (err) {
+      console.error('Error loading report pages:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load report pages');
+      setReportPages([]);
+    } finally {
+      setIsLoadingPages(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,20 +198,39 @@ export default function CreateTabModal({ reports, modules, onClose, onTabCreated
             </select>
           </div>
 
-          {/* Page Name (Optional) */}
+          {/* Page Selection (Optional) */}
           <div>
             <label className="block text-sm font-medium text-[#033c3a] mb-2">
               Specific Page (Optional)
             </label>
-            <input
-              type="text"
-              value={formData.page_name}
-              onChange={(e) => setFormData({ ...formData, page_name: e.target.value })}
-              placeholder="e.g., ReportSection1234"
-              className="w-full px-4 py-2 border border-[#0eafaa]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00e5c0]"
-            />
+            {isLoadingPages ? (
+              <div className="w-full px-4 py-2 border border-[#0eafaa]/30 rounded-lg bg-slate-50 text-slate-500">
+                Loading pages...
+              </div>
+            ) : reportPages.length > 0 ? (
+              <select
+                value={formData.page_name}
+                onChange={(e) => setFormData({ ...formData, page_name: e.target.value })}
+                className="w-full px-4 py-2 border border-[#0eafaa]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00e5c0]"
+              >
+                <option value="">-- Default (First Page) --</option>
+                {reportPages.map((page: any) => (
+                  <option key={page.name} value={page.name}>
+                    {page.displayName}
+                  </option>
+                ))}
+              </select>
+            ) : formData.report_id ? (
+              <div className="w-full px-4 py-2 border border-[#0eafaa]/30 rounded-lg bg-amber-50 text-amber-700 text-sm">
+                No pages found for this report
+              </div>
+            ) : (
+              <div className="w-full px-4 py-2 border border-[#0eafaa]/30 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                Select a report first to see available pages
+              </div>
+            )}
             <p className="mt-1 text-sm text-[#033c3a]/60">
-              Leave blank to show the first page. Use the page name from PowerBI (e.g., "ReportSection1234")
+              Leave blank to show the first page automatically
             </p>
           </div>
 
