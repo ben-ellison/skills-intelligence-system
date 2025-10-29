@@ -120,6 +120,9 @@ export default function PowerBIReport({
         pbi.factories.routerFactory
       );
 
+      // Reset the container to remove any previously embedded reports
+      powerbi.reset(embedContainer);
+
       const config: pbi.IEmbedConfiguration = {
         type: 'report',
         tokenType: models.TokenType.Embed,
