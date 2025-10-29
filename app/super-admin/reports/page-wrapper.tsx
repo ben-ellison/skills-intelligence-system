@@ -183,16 +183,6 @@ export default function ReportsPageWrapper({ initialReports }: ReportsPageWrappe
 
         {/* Add/Edit Modal */}
         {isModalOpen && (
-          <ReportModal
-            report={editingReport}
-            onClose={() => setIsModalOpen(false)}
-            onSuccess={refreshReports}
-          />
-        )}
-      </div>
-    </div>
-        {/* Add/Edit Modal */}
-        {isModalOpen && (
           <ImprovedReportModal
             report={editingReport}
             onClose={() => setIsModalOpen(false)}
