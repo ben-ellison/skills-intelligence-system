@@ -47,11 +47,21 @@ interface IntegrationProvider {
   logo_url: string | null;
 }
 
+interface DatabaseSchema {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  provider_type: string | null;
+  is_active: boolean;
+}
+
 interface SuperAdminData {
   organizations: Organization[];
   users: User[];
   subscriptions: Subscription[];
   integrationProviders: IntegrationProvider[];
+  databaseSchemas: DatabaseSchema[];
 }
 
 export default function SuperAdminPageWrapper({ initialData }: { initialData: SuperAdminData }) {
@@ -473,6 +483,7 @@ export default function SuperAdminPageWrapper({ initialData }: { initialData: Su
           onClose={() => setIsWizardOpen(false)}
           onSuccess={refreshData}
           integrationProviders={data.integrationProviders}
+          databaseSchemas={data.databaseSchemas}
         />
 
         {/* Edit Organization Modal */}

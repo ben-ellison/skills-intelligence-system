@@ -16,12 +16,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, subdomain, lmsProviderId, englishMathsProviderId, crmProviderId, hrProviderId, powerbiWorkspaceId, powerbiWorkspaceName, billingEmail, billingContactName } = body;
+    const { name, subdomain, databaseSchemaId, lmsProviderId, englishMathsProviderId, crmProviderId, hrProviderId, powerbiWorkspaceId, powerbiWorkspaceName, billingEmail, billingContactName } = body;
 
     // Validate required fields
     if (!name || !subdomain) {
       return NextResponse.json(
         { error: 'Name and subdomain are required' },
+        { status: 400 }
+      );
+    }
+
+    // Database schema is required
+    if (!databaseSchemaId) {
+      return NextResponse.json(
+        { error: 'Database schema is required' },
         { status: 400 }
       );
     }
@@ -34,21 +42,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // PowerBI workspace is required
-    if (!powerbiWorkspaceId || !powerbiWorkspaceName) {
-      return NextResponse.json(
-        { error: 'PowerBI workspace ID and name are required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate GUID format for workspace ID
-    const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!guidRegex.test(powerbiWorkspaceId)) {
-      return NextResponse.json(
-        { error: 'PowerBI Workspace ID must be a valid GUID' },
-        { status: 400 }
-      );
+    // PowerBI workspace is optional - validate format if provided
+    if (powerbiWorkspaceId) {
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!guidRegex.test(powerbiWorkspaceId)) {
+        return NextResponse.json(
+          { error: 'PowerBI Workspace ID must be a valid GUID' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate subdomain format (lowercase, alphanumeric, hyphens only)
@@ -77,18 +79,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create organization with category-based integrations
-    const { data: newOrg, error: createError } = await supabase
+    const { data: newOrg, error: createError} = await supabase
       .from('organizations')
       .insert({
         name,
         subdomain,
+        database_schema_id: databaseSchemaId,
         lms_provider_id: lmsProviderId,
         english_maths_provider_id: englishMathsProviderId || null,
         crm_provider_id: crmProviderId || null,
         hr_provider_id: hrProviderId || null,
-        powerbi_workspace_id: powerbiWorkspaceId,
-        powerbi_workspace_name: powerbiWorkspaceName,
-        powerbi_workspace_created_at: new Date().toISOString(),
+        powerbi_workspace_id: powerbiWorkspaceId || null,
+        powerbi_workspace_name: powerbiWorkspaceName || null,
+        powerbi_workspace_created_at: powerbiWorkspaceId ? new Date().toISOString() : null,
         billing_email: billingEmail || null,
         billing_contact_name: billingContactName || null,
         current_learner_count: 0,
@@ -117,6 +120,77 @@ export async function POST(request: NextRequest) {
       console.warn('Organization created but module initialization failed. Modules can be initialized later.');
     } else {
       console.log(`Successfully initialized ${moduleResult} modules for organization ${newOrg.id}`);
+    }
+
+    // Clone global tabs to this organization
+    const { data: globalTabs } = await supabase
+      .from('module_tabs')
+      .select('*')
+      .eq('is_active', true);
+
+    if (globalTabs && globalTabs.length > 0) {
+      const deployedTabs = globalTabs.map(tab => ({
+        organization_id: newOrg.id,
+        module_name: tab.module_name,
+        tab_name: tab.tab_name,
+        sort_order: tab.sort_order,
+        report_id: tab.report_id,
+        page_name: tab.page_name,
+        is_active: true,
+      }));
+
+      const { error: tabsError } = await supabase
+        .from('organization_deployed_tabs')
+        .insert(deployedTabs);
+
+      if (tabsError) {
+        console.error('Error cloning global tabs:', tabsError);
+        console.warn('Organization created but global tabs cloning failed. Tabs can be deployed manually.');
+      } else {
+        console.log(`Successfully cloned ${deployedTabs.length} global tabs for organization ${newOrg.id}`);
+      }
+    }
+
+    // Auto-assign current super admin user to the new organization
+    if (session.user?.email) {
+      // Check if user exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single();
+
+      if (existingUser) {
+        // Update user to add organization_id
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update({ organization_id: newOrg.id, is_super_admin: true })
+          .eq('id', existingUser.id);
+
+        if (userUpdateError) {
+          console.error('Error assigning super admin to organization:', userUpdateError);
+          console.warn('Organization created but super admin assignment failed.');
+        } else {
+          console.log(`Successfully assigned super admin ${session.user.email} to organization ${newOrg.id}`);
+        }
+      } else {
+        // Create new user record
+        const { error: userCreateError } = await supabase
+          .from('users')
+          .insert({
+            email: session.user.email,
+            organization_id: newOrg.id,
+            is_super_admin: true,
+            is_tenant_admin: true,
+          });
+
+        if (userCreateError) {
+          console.error('Error creating super admin user:', userCreateError);
+          console.warn('Organization created but super admin user creation failed.');
+        } else {
+          console.log(`Successfully created super admin user ${session.user.email} for organization ${newOrg.id}`);
+        }
+      }
     }
 
     return NextResponse.json(newOrg, { status: 201 });

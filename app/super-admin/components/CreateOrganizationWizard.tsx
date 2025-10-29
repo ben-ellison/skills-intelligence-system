@@ -11,11 +11,21 @@ interface IntegrationProvider {
   logo_url: string | null;
 }
 
+interface DatabaseSchema {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  provider_type: string | null;
+  is_active: boolean;
+}
+
 interface CreateOrganizationWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   integrationProviders: IntegrationProvider[];
+  databaseSchemas: DatabaseSchema[];
 }
 
 export default function CreateOrganizationWizard({
@@ -23,6 +33,7 @@ export default function CreateOrganizationWizard({
   onClose,
   onSuccess,
   integrationProviders,
+  databaseSchemas,
 }: CreateOrganizationWizardProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +43,7 @@ export default function CreateOrganizationWizard({
   const [formData, setFormData] = useState({
     name: '',
     subdomain: '',
+    databaseSchemaId: '',
     lmsProviderId: '',
     englishMathsProviderId: '',
     crmProviderId: '',
@@ -50,7 +62,8 @@ export default function CreateOrganizationWizard({
   const crmProviders = integrationProviders.filter(p => p.provider_type === 'crm');
   const hrProviders = integrationProviders.filter(p => p.provider_type === 'hr');
 
-  // Get selected providers for review
+  // Get selected providers and schema for review
+  const selectedSchema = databaseSchemas.find(s => s.id === formData.databaseSchemaId);
   const selectedLms = lmsProviders.find(p => p.id === formData.lmsProviderId);
   const selectedEnglishMaths = englishMathsProviders.find(p => p.id === formData.englishMathsProviderId);
   const selectedCrm = crmProviders.find(p => p.id === formData.crmProviderId);
@@ -73,6 +86,10 @@ export default function CreateOrganizationWizard({
         setError('Subdomain must contain only lowercase letters, numbers, and hyphens');
         return;
       }
+      if (!formData.databaseSchemaId) {
+        setError('Please select a database schema (required)');
+        return;
+      }
     }
 
     if (step === 2) {
@@ -83,19 +100,13 @@ export default function CreateOrganizationWizard({
     }
 
     if (step === 3) {
-      if (!formData.powerbiWorkspaceId.trim()) {
-        setError('PowerBI Workspace ID is required');
-        return;
-      }
-      if (!formData.powerbiWorkspaceName.trim()) {
-        setError('Workspace Name is required');
-        return;
-      }
-      // Basic GUID format validation
-      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!guidRegex.test(formData.powerbiWorkspaceId)) {
-        setError('PowerBI Workspace ID must be a valid GUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
-        return;
+      // PowerBI workspace is now optional - validate format if provided
+      if (formData.powerbiWorkspaceId.trim()) {
+        const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!guidRegex.test(formData.powerbiWorkspaceId)) {
+          setError('PowerBI Workspace ID must be a valid GUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
+          return;
+        }
       }
     }
 
@@ -141,6 +152,7 @@ export default function CreateOrganizationWizard({
     setFormData({
       name: '',
       subdomain: '',
+      databaseSchemaId: '',
       lmsProviderId: '',
       englishMathsProviderId: '',
       crmProviderId: '',
@@ -305,6 +317,28 @@ export default function CreateOrganizationWizard({
                   Lowercase letters, numbers, and hyphens only
                 </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Database Schema *
+                </label>
+                <select
+                  value={formData.databaseSchemaId}
+                  onChange={e => setFormData({ ...formData, databaseSchemaId: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
+                >
+                  <option value="">Select database schema...</option>
+                  {databaseSchemas.map(schema => (
+                    <option key={schema.id} value={schema.id}>
+                      {schema.display_name}
+                      {schema.description && ` - ${schema.description}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  Choose the LMS database schema this organization uses (e.g., BUD, Aptem, OneFile)
+                </p>
+              </div>
             </div>
           )}
 
@@ -356,16 +390,16 @@ export default function CreateOrganizationWizard({
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                  PowerBI Workspace
+                  PowerBI Workspace (Optional)
                 </h3>
                 <p className="text-slate-600 mb-6">
-                  Enter the PowerBI workspace details for this organization. This workspace will contain all their reports and dashboards.
+                  You can add the PowerBI workspace now or configure it later from the organization settings.
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  PowerBI Workspace ID *
+                  PowerBI Workspace ID
                 </label>
                 <input
                   type="text"
@@ -381,7 +415,7 @@ export default function CreateOrganizationWizard({
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Workspace Name *
+                  Workspace Name
                 </label>
                 <input
                   type="text"
@@ -465,10 +499,16 @@ export default function CreateOrganizationWizard({
                     <p className="font-medium text-slate-900">{formData.subdomain}.skillsintelligencesystem.co.uk</p>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-slate-600">PowerBI Workspace:</span>
-                    <p className="font-medium text-slate-900">{formData.powerbiWorkspaceName}</p>
-                    <p className="font-mono text-xs text-slate-600 mt-1">{formData.powerbiWorkspaceId}</p>
+                    <span className="text-slate-600">Database Schema:</span>
+                    <p className="font-medium text-slate-900">{selectedSchema?.display_name || 'None'}</p>
                   </div>
+                  {formData.powerbiWorkspaceId && (
+                    <div className="col-span-2">
+                      <span className="text-slate-600">PowerBI Workspace:</span>
+                      <p className="font-medium text-slate-900">{formData.powerbiWorkspaceName || 'Unnamed'}</p>
+                      <p className="font-mono text-xs text-slate-600 mt-1">{formData.powerbiWorkspaceId}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-slate-200">

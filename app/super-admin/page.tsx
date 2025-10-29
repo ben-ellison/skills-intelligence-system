@@ -60,6 +60,13 @@ export default async function SuperAdminPage() {
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
+  // Fetch database schemas
+  const { data: databaseSchemas } = await supabase
+    .from('database_schemas')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_name', { ascending: true });
+
   return (
     <SuperAdminPageWrapper
       initialData={{
@@ -67,6 +74,7 @@ export default async function SuperAdminPage() {
         users: users || [],
         subscriptions: subscriptions || [],
         integrationProviders: integrationProviders || [],
+        databaseSchemas: databaseSchemas || [],
       }}
     />
   );
