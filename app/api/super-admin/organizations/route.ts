@@ -151,6 +151,36 @@ export async function POST(request: NextRequest) {
       console.warn('Organization created but DNS record creation failed. Domain can be configured manually.');
     }
 
+    // Add domain to Vercel project
+    const domainName = `${subdomain}.skillsintelligencesystem.co.uk`;
+    try {
+      const vercelResponse = await fetch(
+        `https://api.vercel.com/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains?teamId=${process.env.VERCEL_TEAM_ID}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.VERCEL_API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: domainName,
+          }),
+        }
+      );
+
+      if (!vercelResponse.ok) {
+        const errorData = await vercelResponse.json();
+        console.error('Vercel domain addition failed:', errorData);
+        console.warn(`Organization created but Vercel domain addition failed for ${domainName}`);
+      } else {
+        const vercelData = await vercelResponse.json();
+        console.log(`Successfully added domain ${domainName} to Vercel project`);
+      }
+    } catch (vercelError) {
+      console.error('Error adding domain to Vercel:', vercelError);
+      console.warn('Organization created but Vercel domain addition failed. Domain can be added manually.');
+    }
+
     // Clone global tabs to this organization
     const { data: globalTabs } = await supabase
       .from('module_tabs')
