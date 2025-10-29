@@ -1,10 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PowerBIReport from '../components/PowerBIReport';
+
+interface PriorityReportData {
+  hasRole: boolean;
+  roleName?: string;
+  hasPriorityReport?: boolean;
+  isDeployed?: boolean;
+  message?: string;
+  report?: {
+    id: string;
+    name: string;
+    reportId: string;
+    workspaceId: string;
+    templateReportId: string;
+  };
+}
 
 export default function SummaryPage() {
   const [activeTab, setActiveTab] = useState<'powerbi' | 'ai'>('powerbi');
+  const [priorityData, setPriorityData] = useState<PriorityReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPriorityReport();
+  }, []);
+
+  const fetchPriorityReport = async () => {
+    try {
+      const response = await fetch('/api/tenant/priority-report');
+      const data = await response.json();
+      setPriorityData(data);
+    } catch (error) {
+      console.error('Error fetching priority report:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -39,7 +72,7 @@ export default function SummaryPage() {
       {/* Tab Content */}
       <div className="flex-1">
         {activeTab === 'powerbi' ? (
-          <PowerBIReportTab />
+          <PowerBIReportTab loading={loading} priorityData={priorityData} />
         ) : (
           <AISummaryTab />
         )}
@@ -48,38 +81,70 @@ export default function SummaryPage() {
   );
 }
 
-function PowerBIReportTab() {
-  // TODO: Configure which PowerBI report to show here
-  // For now, showing a placeholder until you configure the report
-  return (
-    <div className="flex items-center justify-center h-full p-8">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-2xl">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2">
-          Configure Immediate Priorities Dashboard
-        </h3>
-        <p className="text-blue-800 mb-4">
-          To display a PowerBI report here, you need to:
-        </p>
-        <ol className="list-decimal list-inside text-blue-800 space-y-2">
-          <li>Create a PowerBI report in the Reports Library</li>
-          <li>Deploy it to this organization</li>
-          <li>Configure the report ID and workspace ID in this component</li>
-        </ol>
-        <div className="mt-4 p-3 bg-blue-100 rounded">
-          <p className="text-sm text-blue-900">
-            <strong>Example usage:</strong> Replace the PowerBIReportTab content with:
-          </p>
-          <code className="text-xs text-blue-900 block mt-2">
-            {`<PowerBIReport
-  reportId="your-report-id"
-  workspaceId="your-workspace-id"
-  reportName="Executive Dashboard"
-  templateReportId="template-id"
-/>`}
-          </code>
+function PowerBIReportTab({ loading, priorityData }: { loading: boolean; priorityData: PriorityReportData | null }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5c0] mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading your Immediate Priorities...</p>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  if (!priorityData) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Report</h3>
+          <p className="text-red-800">Unable to load your Immediate Priorities report. Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!priorityData.hasRole) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-lg font-semibold text-amber-900 mb-2">No Role Assigned</h3>
+          <p className="text-amber-800">{priorityData.message || 'You do not have a role assigned yet. Please contact your administrator.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!priorityData.hasPriorityReport) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">No Priority Report Configured</h3>
+          <p className="text-blue-800">{priorityData.message || `No Immediate Priorities report configured for your role.`}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!priorityData.isDeployed || !priorityData.report) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-lg font-semibold text-amber-900 mb-2">Report Not Deployed</h3>
+          <p className="text-amber-800">{priorityData.message || 'Your Immediate Priorities report has not been deployed to this organization yet.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Success! Display the PowerBI report
+  return (
+    <PowerBIReport
+      reportId={priorityData.report.reportId}
+      workspaceId={priorityData.report.workspaceId}
+      reportName={priorityData.report.name}
+      templateReportId={priorityData.report.templateReportId}
+    />
   );
 }
 
