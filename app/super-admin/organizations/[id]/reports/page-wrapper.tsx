@@ -49,56 +49,9 @@ export default function ManageReportsWrapper({
   deployedReports,
 }: ManageReportsProps) {
   const router = useRouter();
-  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateReport | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Form state for deployment
-  const [deploymentForm, setDeploymentForm] = useState({
-    powerbiReportId: '',
-    displayName: '',
-  });
-
-  // Get deployed template IDs for quick lookup
-  const deployedTemplateIds = new Set(deployedReports.map(r => r.template_report_id));
-
-  const handleDeployReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTemplate) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/super-admin/organizations/${organization.id}/reports`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateReportId: selectedTemplate.id,
-          powerbiReportId: deploymentForm.powerbiReportId,
-          powerbiWorkspaceId: organization.powerbi_workspace_id,
-          displayName: deploymentForm.displayName || selectedTemplate.name,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to deploy report');
-      }
-
-      setSuccess('Report deployed successfully!');
-      setIsDeployModalOpen(false);
-      setSelectedTemplate(null);
-      setDeploymentForm({ powerbiReportId: '', displayName: '' });
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleArchiveReport = async (reportId: string) => {
     if (!confirm('Are you sure you want to archive this report deployment?')) return;
@@ -119,6 +72,39 @@ export default function ManageReportsWrapper({
       router.refresh();
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const handleScanWorkspace = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/super-admin/organizations/${organization.id}/reports/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to scan workspace');
+      }
+
+      const result = await response.json();
+
+      setSuccess(
+        `Workspace scanned successfully! ` +
+        `Deployed ${result.summary.deployed} report(s), ` +
+        `${result.summary.failed} failed, ` +
+        `${result.summary.unmatched} unmatched.`
+      );
+
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -143,15 +129,25 @@ export default function ManageReportsWrapper({
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Report Deployments</h1>
               <p className="text-slate-600 mt-2">
-                Deploy template reports to {organization.name}'s PowerBI workspace
+                Automatically match and deploy reports from {organization.name}'s PowerBI workspace
               </p>
             </div>
             <button
-              onClick={() => setIsDeployModalOpen(true)}
-              className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors"
-              disabled={!organization.powerbi_workspace_id}
+              onClick={handleScanWorkspace}
+              className="px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+              disabled={!organization.powerbi_workspace_id || isSubmitting}
             >
-              + Deploy Report
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Scanning...
+                </span>
+              ) : (
+                '🔍 Scan Workspace & Auto-Deploy'
+              )}
             </button>
           </div>
         </div>
@@ -273,164 +269,25 @@ export default function ManageReportsWrapper({
           )}
         </div>
 
-        {/* Available Templates Section */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
-            Available Template Reports ({templateReports.length})
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templateReports.map((template) => {
-              const isDeployed = deployedTemplateIds.has(template.id);
-
-              return (
-                <div
-                  key={template.id}
-                  className={`
-                    border rounded-lg p-4
-                    ${isDeployed ? 'border-slate-200 bg-slate-50' : 'border-slate-300 bg-white'}
-                  `}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-slate-900">{template.name}</h3>
-                    {template.category && (
-                      <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                        {template.category}
-                      </span>
-                    )}
-                  </div>
-
-                  {template.description && (
-                    <p className="text-sm text-slate-600 mb-3">{template.description}</p>
-                  )}
-
-                  <div className="text-xs text-slate-500 font-mono mb-3">
-                    {template.powerbi_report_id}
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedTemplate(template);
-                      setDeploymentForm({
-                        powerbiReportId: '',
-                        displayName: template.name,
-                      });
-                      setIsDeployModalOpen(true);
-                    }}
-                    disabled={isDeployed || !organization.powerbi_workspace_id}
-                    className={`
-                      w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                      ${
-                        isDeployed
-                          ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                          : !organization.powerbi_workspace_id
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-[#00e5c0] text-white hover:bg-[#0eafaa]'
-                      }
-                    `}
-                  >
-                    {isDeployed ? 'Already Deployed' : 'Deploy'}
-                  </button>
-                </div>
-              );
-            })}
+        {/* Info Box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-blue-900 mb-2">How Automatic Report Deployment Works</h3>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p>1. Click "Scan Workspace & Auto-Deploy" to scan the organization's PowerBI workspace</p>
+                <p>2. The system fetches all reports from the workspace using PowerBI REST API</p>
+                <p>3. Reports are automatically matched to template reports by name (case-insensitive)</p>
+                <p>4. Matched reports are instantly deployed and appear in the "Deployed Reports" section above</p>
+                <p className="mt-3 font-medium">📝 Note: Make sure report names in the organization's workspace match the template report names exactly (spaces and capitalization don't matter)</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Deploy Report Modal */}
-      {isDeployModalOpen && selectedTemplate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Deploy Report</h2>
-              <button
-                onClick={() => {
-                  setIsDeployModalOpen(false);
-                  setSelectedTemplate(null);
-                  setError(null);
-                }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleDeployReport} className="space-y-4">
-              <div className="bg-slate-50 rounded-lg p-4 mb-4">
-                <div className="text-sm text-slate-700">
-                  <strong>Template Report:</strong> {selectedTemplate.name}
-                </div>
-                <div className="text-xs text-slate-500 mt-1 font-mono">
-                  {selectedTemplate.powerbi_report_id}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Organization's PowerBI Report ID <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={deploymentForm.powerbiReportId}
-                  onChange={(e) => setDeploymentForm({ ...deploymentForm, powerbiReportId: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent font-mono"
-                  placeholder="Enter the report ID from the organization's workspace"
-                  required
-                  disabled={isSubmitting}
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  After copying the report to {organization.name}'s workspace, enter the new report ID here
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Display Name
-                </label>
-                <input
-                  type="text"
-                  value={deploymentForm.displayName}
-                  onChange={(e) => setDeploymentForm({ ...deploymentForm, displayName: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
-                  placeholder="Override the display name (optional)"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-[#00e5c0] text-white rounded-lg hover:bg-[#0eafaa] disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? 'Deploying...' : 'Deploy Report'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsDeployModalOpen(false);
-                    setSelectedTemplate(null);
-                    setError(null);
-                  }}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-slate-600 hover:text-slate-900 disabled:text-slate-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
