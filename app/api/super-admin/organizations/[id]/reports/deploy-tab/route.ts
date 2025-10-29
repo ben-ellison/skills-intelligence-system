@@ -74,7 +74,6 @@ export async function POST(
           powerbi_workspace_id: organization.powerbi_workspace_id,
           deployment_status: 'active',
           deployed_at: new Date().toISOString(),
-          deployed_by: session.user.email,
         })
         .select('id')
         .single();
