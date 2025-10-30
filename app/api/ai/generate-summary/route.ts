@@ -13,11 +13,88 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
     const body = await request.json();
-    const { roleId, prioritiesData } = body;
+    const { roleId, fetchPowerBIData } = body;
 
-    if (!roleId || !prioritiesData) {
+    if (!roleId) {
       return NextResponse.json(
-        { error: 'Missing required fields: roleId and prioritiesData' },
+        { error: 'Missing required field: roleId' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch PowerBI data if requested
+    let prioritiesData;
+    if (fetchPowerBIData) {
+      try {
+        // Get user's organization and report info
+        const { data: user } = await supabase
+          .from('users')
+          .select(`
+            organization_id,
+            primary_role_id,
+            global_roles:primary_role_id (
+              priority_report_id,
+              powerbi_reports:priority_report_id (
+                id,
+                name
+              )
+            )
+          `)
+          .eq('auth0_user_id', session.user.sub)
+          .single();
+
+        if (user?.global_roles && user.global_roles.powerbi_reports) {
+          const role = user.global_roles as any;
+          const templateReport = role.powerbi_reports;
+
+          // Get deployed report
+          const { data: deployedReport } = await supabase
+            .from('organization_powerbi_reports')
+            .select('powerbi_report_id, powerbi_workspace_id')
+            .eq('organization_id', user.organization_id)
+            .eq('template_report_id', templateReport.id)
+            .eq('deployment_status', 'active')
+            .single();
+
+          if (deployedReport) {
+            // Fetch PowerBI data server-side
+            const powerBIDataUrl = new URL('/api/tenant/powerbi-data', request.url);
+            const powerBIResponse = await fetch(powerBIDataUrl, {
+              headers: {
+                'Cookie': request.headers.get('cookie') || '',
+              },
+            });
+
+            if (powerBIResponse.ok) {
+              prioritiesData = await powerBIResponse.json();
+            } else {
+              prioritiesData = {
+                note: 'PowerBI data export not available. Using report metadata.',
+                reportName: templateReport.name,
+              };
+            }
+          } else {
+            prioritiesData = {
+              note: 'Report not deployed to organization.',
+            };
+          }
+        } else {
+          prioritiesData = {
+            note: 'No priority report configured for user role.',
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching PowerBI data:', error);
+        prioritiesData = {
+          note: 'Failed to fetch PowerBI data. Using placeholder.',
+          error: String(error),
+        };
+      }
+    } else if (body.prioritiesData) {
+      prioritiesData = body.prioritiesData;
+    } else {
+      return NextResponse.json(
+        { error: 'Either prioritiesData or fetchPowerBIData must be provided' },
         { status: 400 }
       );
     }

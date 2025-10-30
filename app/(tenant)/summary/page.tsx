@@ -186,29 +186,7 @@ function AISummaryTab() {
         return;
       }
 
-      // Fetch the actual PowerBI report data
-      let powerBIData;
-      try {
-        const powerBIResponse = await fetch('/api/tenant/powerbi-data');
-        if (powerBIResponse.ok) {
-          powerBIData = await powerBIResponse.json();
-          console.log('PowerBI data fetched:', powerBIData);
-        } else {
-          console.warn('Could not fetch PowerBI data, using fallback');
-          powerBIData = {
-            note: 'PowerBI data not available. Using sample data for demonstration.',
-            reportName: priorityData.report?.name || 'Immediate Priorities',
-          };
-        }
-      } catch (err) {
-        console.error('Error fetching PowerBI data:', err);
-        powerBIData = {
-          note: 'PowerBI data fetch failed. Using sample data.',
-          reportName: priorityData.report?.name || 'Immediate Priorities',
-        };
-      }
-
-      // Call the AI summary generation API
+      // Call the AI summary generation API (it will fetch PowerBI data server-side)
       const summaryResponse = await fetch('/api/ai/generate-summary', {
         method: 'POST',
         headers: {
@@ -216,7 +194,7 @@ function AISummaryTab() {
         },
         body: JSON.stringify({
           roleId: userData.roleId,
-          prioritiesData: powerBIData,
+          fetchPowerBIData: true, // Tell the API to fetch PowerBI data
         }),
       });
 
