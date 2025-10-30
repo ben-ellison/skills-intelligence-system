@@ -183,80 +183,121 @@ export async function fetchPowerBIVisualData(
     throw new Error('Selected pages not found in report');
   }
 
-  // Use Puppeteer to extract data from PowerBI report
-  // This is the same approach the original portal uses - load the report in a headless browser
-  // and use the PowerBI JavaScript SDK to extract data from visuals
-  console.log('[PowerBI Fetch] Using Puppeteer to extract data from embedded report');
-
-  // First, generate an embed token for the report
-  console.log('[PowerBI Fetch] Generating embed token');
-  const embedTokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/GenerateToken`;
-  const embedTokenResponse = await fetch(embedTokenUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      accessLevel: 'View',
-      allowSaveAs: false
-    })
-  });
-
-  if (!embedTokenResponse.ok) {
-    const error = await embedTokenResponse.text();
-    throw new Error(`Failed to generate embed token: ${error}`);
-  }
-
-  const embedTokenData = await embedTokenResponse.json();
-  const embedToken = embedTokenData.token;
-
-  // Build the embed URL
-  const embedUrl = `https://app.powerbi.com/reportEmbed?reportId=${deployedReport.powerbi_report_id}&groupId=${deployedReport.powerbi_workspace_id}`;
-
-  console.log('[PowerBI Fetch] Embed token generated, launching Puppeteer');
+  // Try to get dataset schema and query tables
+  console.log('[PowerBI Fetch] Fetching dataset schema');
 
   try {
-    // Extract data using Puppeteer with the embed token
-    const extractedData = await extractPowerBIDataWithPuppeteer(embedUrl, embedToken, deployedReport.powerbi_report_id, deployedReport.powerbi_workspace_id);
+    // Get dataset schema to discover tables
+    const datasetUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}`;
+    const datasetResponse = await fetch(datasetUrl, {
+      headers: { 'Authorization': `Bearer ${access_token}` }
+    });
 
-    if (extractedData.success && extractedData.visuals && extractedData.visuals.length > 0) {
-      console.log('[PowerBI Fetch] ✓ Successfully extracted data via Puppeteer:', {
-        visualCount: extractedData.visuals.length,
-        pageCount: extractedData.pageCount
+    if (datasetResponse.ok) {
+      const datasetInfo = await datasetResponse.json();
+      console.log('[PowerBI Fetch] Dataset info retrieved:', {
+        name: datasetInfo.name,
+        hasSchema: !!datasetInfo.tables
       });
 
-      return {
-        source: 'powerbi_visuals',
-        reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-        selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-        visuals: extractedData.visuals,
-        timestamp: new Date().toISOString(),
-        debug: {
-          datasetId,
-          pagesProcessed: pagesToProcess.length,
-          visualsExtracted: extractedData.visuals.length,
-          extractionMethod: 'puppeteer'
+      // Get list of tables from the dataset
+      const tablesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/tables`;
+      const tablesResponse = await fetch(tablesUrl, {
+        headers: { 'Authorization': `Bearer ${access_token}` }
+      });
+
+      if (tablesResponse.ok) {
+        const tablesData = await tablesResponse.json();
+        const tables = tablesData.value || [];
+
+        console.log('[PowerBI Fetch] Found tables:', {
+          count: tables.length,
+          names: tables.slice(0, 5).map((t: any) => t.name)
+        });
+
+        if (tables.length > 0) {
+          // Query the first few tables for sample data
+          const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/executeQueries`;
+          const tableQueries = tables.slice(0, 3).map((table: any) => ({
+            query: `EVALUATE TOPN(20, '${table.name}')`
+          }));
+
+          const queryResponse = await fetch(queryUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              queries: tableQueries,
+              serializerSettings: { includeNulls: true }
+            })
+          });
+
+          if (queryResponse.ok) {
+            const queryData = await queryResponse.json();
+            const results = queryData.results || [];
+
+            console.log('[PowerBI Fetch] Query executed successfully:', {
+              tableCount: results.length,
+              rowsInFirstTable: results[0]?.tables?.[0]?.rows?.length || 0
+            });
+
+            // Combine results from all tables
+            const allData: any[] = [];
+            results.forEach((result: any, idx: number) => {
+              const rows = result.tables?.[0]?.rows || [];
+              if (rows.length > 0) {
+                allData.push({
+                  tableName: tables[idx].name,
+                  rowCount: rows.length,
+                  sampleData: rows.slice(0, 10)
+                });
+              }
+            });
+
+            if (allData.length > 0) {
+              return {
+                source: 'dataset_query',
+                reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+                selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+                dataExtract: allData,
+                timestamp: new Date().toISOString(),
+                debug: {
+                  datasetId,
+                  pagesProcessed: pagesToProcess.length,
+                  tablesQueried: allData.length,
+                  extractionMethod: 'dataset_query'
+                }
+              };
+            }
+          } else {
+            const errorText = await queryResponse.text();
+            console.error('[PowerBI Fetch] Query failed:', errorText);
+          }
         }
-      };
-    } else {
-      throw new Error('No visuals extracted from Puppeteer');
-    }
-  } catch (puppeteerError: any) {
-    console.error('[PowerBI Fetch] Puppeteer extraction failed:', puppeteerError.message);
-    // Fall back to metadata if Puppeteer fails
-    return {
-      source: 'pages_metadata',
-      reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-      selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-      pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-      note: 'Puppeteer extraction failed. Using page metadata only.',
-      debug: {
-        pagesAttempted: pagesToProcess.length,
-        extractionError: puppeteerError.message
+      } else {
+        console.log('[PowerBI Fetch] Could not fetch tables list');
       }
-    };
+    }
+
+    console.log('[PowerBI Fetch] Dataset query approach failed, falling back to metadata');
+  } catch (queryError: any) {
+    console.error('[PowerBI Fetch] Dataset query error:', queryError.message);
   }
+
+  // Fallback to metadata only
+  return {
+    source: 'pages_metadata',
+    reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+    selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+    pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+    note: 'Data extraction not available. Using page metadata only.',
+    debug: {
+      pagesAttempted: pagesToProcess.length,
+      extractionError: 'Dataset query failed'
+    }
+  };
 
   // Old visual export code (doesn't work - keeping for reference)
   // Collect visual data from all selected pages
