@@ -13,10 +13,10 @@ export async function GET() {
 
     const supabase = createAdminClient();
 
-    // Fetch user data including role
+    // Fetch user data
     const { data: userData, error } = await supabase
       .from('users')
-      .select('id, primary_role_id, organization_id, global_roles!users_primary_role_id_fkey(id, name, display_name)')
+      .select('id, primary_role_id, organization_id')
       .eq('auth0_user_id', session.user.sub)
       .single();
 
@@ -25,11 +25,25 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Fetch role data separately if primary_role_id exists
+    let roleData = null;
+    if (userData.primary_role_id) {
+      const { data: role, error: roleError } = await supabase
+        .from('global_roles')
+        .select('id, name, display_name')
+        .eq('id', userData.primary_role_id)
+        .single();
+
+      if (!roleError && role) {
+        roleData = role;
+      }
+    }
+
     return NextResponse.json({
       userId: userData.id,
       roleId: userData.primary_role_id,
       organizationId: userData.organization_id,
-      role: userData.global_roles,
+      role: roleData,
     });
   } catch (error) {
     console.error('Error in user-info API:', error);
