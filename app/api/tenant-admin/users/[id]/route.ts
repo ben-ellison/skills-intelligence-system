@@ -22,10 +22,10 @@ export async function PATCH(
     const supabase = createAdminClient();
     const { id: userId } = await params;
 
-    // Get the current user's organization
+    // Get the current user's organization and admin flags
     const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('organization_id')
+      .select('id, organization_id, is_tenant_admin, can_create_any_user')
       .eq('email', session.user.email)
       .single();
 
@@ -50,15 +50,59 @@ export async function PATCH(
 
     // Parse request body
     const body = await request.json();
-    const { name, isTenantAdmin, roleIds } = body;
+    const { name, isTenantAdmin, roleIds, canCreateUsers, canCreateAnyUser } = body;
+
+    // Check permissions for assigning Tenant Admin
+    if (isTenantAdmin && !currentUser.is_tenant_admin) {
+      return NextResponse.json({
+        error: 'Only Tenant Admins can create other Tenant Admins'
+      }, { status: 403 });
+    }
+
+    // Validate role assignments based on user's permissions
+    if (roleIds !== undefined && roleIds.length > 0) {
+      // If not tenant admin, check each role assignment permission
+      if (!currentUser.is_tenant_admin) {
+        for (const roleId of roleIds) {
+          const { data: canAssign, error: permError } = await supabase
+            .rpc('can_user_assign_role', {
+              p_user_id: currentUser.id,
+              p_target_role_id: roleId
+            });
+
+          if (permError || !canAssign) {
+            // Get role name for better error message
+            const { data: role } = await supabase
+              .from('global_roles')
+              .select('display_name')
+              .eq('id', roleId)
+              .single();
+
+            return NextResponse.json({
+              error: `You do not have permission to assign the role: ${role?.display_name || 'Unknown'}`
+            }, { status: 403 });
+          }
+        }
+      }
+    }
 
     // Update user details
+    const updateData: any = {
+      name: name || null,
+      is_tenant_admin: isTenantAdmin || false,
+    };
+
+    // Add admin permission flags if provided
+    if (canCreateUsers !== undefined) {
+      updateData.can_create_users = canCreateUsers;
+    }
+    if (canCreateAnyUser !== undefined) {
+      updateData.can_create_any_user = canCreateAnyUser;
+    }
+
     const { error: updateError } = await supabase
       .from('users')
-      .update({
-        name: name || null,
-        is_tenant_admin: isTenantAdmin || false,
-      })
+      .update(updateData)
       .eq('id', userId);
 
     if (updateError) {

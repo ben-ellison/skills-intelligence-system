@@ -17,6 +17,8 @@ interface User {
   email: string;
   name: string | null;
   is_tenant_admin: boolean;
+  can_create_users: boolean;
+  can_create_any_user: boolean;
   status: string;
   invited_at: string;
   activated_at: string | null;
@@ -30,6 +32,8 @@ interface Role {
   name: string;
   display_name: string;
   description: string | null;
+  role_category: string | null;
+  role_level: number;
 }
 
 export default function UsersPage() {
@@ -45,12 +49,16 @@ export default function UsersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviteIsTenantAdmin, setInviteIsTenantAdmin] = useState(false);
+  const [inviteCanCreateUsers, setInviteCanCreateUsers] = useState(false);
+  const [inviteCanCreateAnyUser, setInviteCanCreateAnyUser] = useState(false);
   const [inviteRoleIds, setInviteRoleIds] = useState<string[]>([]);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState('');
   const [editIsTenantAdmin, setEditIsTenantAdmin] = useState(false);
+  const [editCanCreateUsers, setEditCanCreateUsers] = useState(false);
+  const [editCanCreateAnyUser, setEditCanCreateAnyUser] = useState(false);
   const [editRoleIds, setEditRoleIds] = useState<string[]>([]);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
@@ -81,7 +89,8 @@ export default function UsersPage() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch('/api/tenant-admin/roles');
+      // Fetch only assignable roles based on current user's permissions
+      const response = await fetch('/api/tenant-admin/roles/assignable');
       if (!response.ok) throw new Error('Failed to fetch roles');
       const data = await response.json();
       setRoles(data);
@@ -102,6 +111,8 @@ export default function UsersPage() {
           email: inviteEmail,
           name: inviteName,
           isTenantAdmin: inviteIsTenantAdmin,
+          canCreateUsers: inviteCanCreateUsers,
+          canCreateAnyUser: inviteCanCreateAnyUser,
           roleIds: inviteRoleIds,
         }),
       });
@@ -115,6 +126,8 @@ export default function UsersPage() {
       setInviteEmail('');
       setInviteName('');
       setInviteIsTenantAdmin(false);
+      setInviteCanCreateUsers(false);
+      setInviteCanCreateAnyUser(false);
       setInviteRoleIds([]);
       setShowInviteModal(false);
 
@@ -140,6 +153,8 @@ export default function UsersPage() {
         body: JSON.stringify({
           name: editName,
           isTenantAdmin: editIsTenantAdmin,
+          canCreateUsers: editCanCreateUsers,
+          canCreateAnyUser: editCanCreateAnyUser,
           roleIds: editRoleIds,
         }),
       });
@@ -163,6 +178,8 @@ export default function UsersPage() {
     setSelectedUser(user);
     setEditName(user.name || '');
     setEditIsTenantAdmin(user.is_tenant_admin);
+    setEditCanCreateUsers(user.can_create_users || false);
+    setEditCanCreateAnyUser(user.can_create_any_user || false);
     setEditRoleIds(user.user_roles?.map((r) => r.global_role_id) || []);
     setShowEditModal(true);
   };
@@ -417,7 +434,10 @@ export default function UsersPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Admin Permissions
+                </label>
                 <label className="flex items-center">
                   <input
                     type="checkbox"
@@ -425,7 +445,25 @@ export default function UsersPage() {
                     onChange={(e) => setInviteIsTenantAdmin(e.target.checked)}
                     className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
                   />
-                  <span className="ml-2 text-sm text-slate-700">Make Tenant Admin</span>
+                  <span className="ml-2 text-sm text-slate-700">Tenant Admin</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={inviteCanCreateUsers}
+                    onChange={(e) => setInviteCanCreateUsers(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Can create users in own hierarchy</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={inviteCanCreateAnyUser}
+                    onChange={(e) => setInviteCanCreateAnyUser(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Can create any user (except Tenant Admin)</span>
                 </label>
               </div>
 
@@ -514,7 +552,10 @@ export default function UsersPage() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Admin Permissions
+                </label>
                 <label className="flex items-center">
                   <input
                     type="checkbox"
@@ -522,7 +563,25 @@ export default function UsersPage() {
                     onChange={(e) => setEditIsTenantAdmin(e.target.checked)}
                     className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
                   />
-                  <span className="ml-2 text-sm text-slate-700">Make Tenant Admin</span>
+                  <span className="ml-2 text-sm text-slate-700">Tenant Admin</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editCanCreateUsers}
+                    onChange={(e) => setEditCanCreateUsers(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Can create users in own hierarchy</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editCanCreateAnyUser}
+                    onChange={(e) => setEditCanCreateAnyUser(e.target.checked)}
+                    className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                  />
+                  <span className="ml-2 text-sm text-slate-700">Can create any user (except Tenant Admin)</span>
                 </label>
               </div>
 

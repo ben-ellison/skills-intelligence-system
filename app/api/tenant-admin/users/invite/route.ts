@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get the user's organization
+    // Get the user's organization and admin flags
     const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('organization_id')
+      .select('id, organization_id, is_tenant_admin, can_create_any_user')
       .eq('email', session.user.email)
       .single();
 
@@ -31,10 +31,44 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { email, name, isTenantAdmin, roleIds } = body;
+    const { email, name, isTenantAdmin, roleIds, canCreateUsers, canCreateAnyUser } = body;
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    // Check permissions for assigning Tenant Admin
+    if (isTenantAdmin && !currentUser.is_tenant_admin) {
+      return NextResponse.json({
+        error: 'Only Tenant Admins can create other Tenant Admins'
+      }, { status: 403 });
+    }
+
+    // Validate role assignments based on user's permissions
+    if (roleIds && roleIds.length > 0) {
+      // If not tenant admin, check each role assignment permission
+      if (!currentUser.is_tenant_admin) {
+        for (const roleId of roleIds) {
+          const { data: canAssign, error: permError } = await supabase
+            .rpc('can_user_assign_role', {
+              p_user_id: currentUser.id,
+              p_target_role_id: roleId
+            });
+
+          if (permError || !canAssign) {
+            // Get role name for better error message
+            const { data: role } = await supabase
+              .from('global_roles')
+              .select('display_name')
+              .eq('id', roleId)
+              .single();
+
+            return NextResponse.json({
+              error: `You do not have permission to assign the role: ${role?.display_name || 'Unknown'}`
+            }, { status: 403 });
+          }
+        }
+      }
     }
 
     // Check if user already exists
@@ -56,6 +90,8 @@ export async function POST(request: NextRequest) {
         name: name || null,
         organization_id: currentUser.organization_id,
         is_tenant_admin: isTenantAdmin || false,
+        can_create_users: canCreateUsers || false,
+        can_create_any_user: canCreateAnyUser || false,
         status: 'invited',
         invited_at: new Date().toISOString(),
       })
