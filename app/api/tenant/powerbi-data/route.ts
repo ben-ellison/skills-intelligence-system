@@ -199,8 +199,14 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PowerBI Data] Exporting visual: ${visual.title || visual.name}`);
             const exportResponse = await fetch(exportDataUrl, {
-              method: 'GET',
-              headers: { 'Authorization': `Bearer ${access_token}` },
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                format: 'CSV'
+              })
             });
 
             if (exportResponse.ok) {
