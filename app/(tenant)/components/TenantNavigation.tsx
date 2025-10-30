@@ -283,7 +283,7 @@ export default function TenantNavigation({
               <img
                 src={organizationLogo}
                 alt={organizationName}
-                className="h-8 w-auto max-w-[200px] object-contain bg-[#033c3a] px-3 py-1 rounded"
+                className="h-8 w-auto max-w-[200px] object-contain"
               />
             ) : (
               <h1 className="text-xl font-semibold text-slate-900">
