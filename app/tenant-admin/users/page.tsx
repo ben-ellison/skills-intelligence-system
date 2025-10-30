@@ -471,23 +471,58 @@ export default function UsersPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Assign Roles
                 </label>
-                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2">
-                  {roles.map((role) => (
-                    <label key={role.id} className="flex items-start">
-                      <input
-                        type="checkbox"
-                        checked={inviteRoleIds.includes(role.id)}
-                        onChange={() => toggleRole(role.id, true)}
-                        className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
-                      />
-                      <div className="ml-2">
-                        <div className="text-sm text-slate-900">{role.display_name}</div>
-                        {role.description && (
-                          <div className="text-xs text-slate-500">{role.description}</div>
-                        )}
+                <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-3">
+                  {(() => {
+                    // Group roles by category
+                    const grouped = roles.reduce((acc, role) => {
+                      const category = role.role_category || 'Other';
+                      if (!acc[category]) acc[category] = [];
+                      acc[category].push(role);
+                      return acc;
+                    }, {} as Record<string, typeof roles>);
+
+                    // Sort categories: Senior Leadership first, then alphabetically
+                    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+                      if (a === 'Other') return 1;
+                      if (b === 'Other') return -1;
+                      if (a === 'leadership') return -1;
+                      if (b === 'leadership') return 1;
+                      return a.localeCompare(b);
+                    });
+
+                    return sortedCategories.map((category) => (
+                      <div key={category}>
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 pb-1 border-b border-slate-200">
+                          {category === 'operations' ? 'Operations' :
+                           category === 'quality' ? 'Quality' :
+                           category === 'compliance' ? 'Compliance' :
+                           category === 'sales' ? 'Sales' :
+                           category === 'leadership' ? 'Senior Leadership' :
+                           category}
+                        </div>
+                        <div className="space-y-2 ml-2">
+                          {grouped[category]
+                            .sort((a, b) => a.role_level - b.role_level)
+                            .map((role) => (
+                              <label key={role.id} className="flex items-start">
+                                <input
+                                  type="checkbox"
+                                  checked={inviteRoleIds.includes(role.id)}
+                                  onChange={() => toggleRole(role.id, true)}
+                                  className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                                />
+                                <div className="ml-2">
+                                  <div className="text-sm text-slate-900">{role.display_name}</div>
+                                  {role.description && (
+                                    <div className="text-xs text-slate-500">{role.description}</div>
+                                  )}
+                                </div>
+                              </label>
+                            ))}
+                        </div>
                       </div>
-                    </label>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -589,23 +624,58 @@ export default function UsersPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Assign Roles
                 </label>
-                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-2">
-                  {roles.map((role) => (
-                    <label key={role.id} className="flex items-start">
-                      <input
-                        type="checkbox"
-                        checked={editRoleIds.includes(role.id)}
-                        onChange={() => toggleRole(role.id, false)}
-                        className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
-                      />
-                      <div className="ml-2">
-                        <div className="text-sm text-slate-900">{role.display_name}</div>
-                        {role.description && (
-                          <div className="text-xs text-slate-500">{role.description}</div>
-                        )}
+                <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-3 space-y-3">
+                  {(() => {
+                    // Group roles by category
+                    const grouped = roles.reduce((acc, role) => {
+                      const category = role.role_category || 'Other';
+                      if (!acc[category]) acc[category] = [];
+                      acc[category].push(role);
+                      return acc;
+                    }, {} as Record<string, typeof roles>);
+
+                    // Sort categories: Senior Leadership first, then alphabetically
+                    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+                      if (a === 'Other') return 1;
+                      if (b === 'Other') return -1;
+                      if (a === 'leadership') return -1;
+                      if (b === 'leadership') return 1;
+                      return a.localeCompare(b);
+                    });
+
+                    return sortedCategories.map((category) => (
+                      <div key={category}>
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 pb-1 border-b border-slate-200">
+                          {category === 'operations' ? 'Operations' :
+                           category === 'quality' ? 'Quality' :
+                           category === 'compliance' ? 'Compliance' :
+                           category === 'sales' ? 'Sales' :
+                           category === 'leadership' ? 'Senior Leadership' :
+                           category}
+                        </div>
+                        <div className="space-y-2 ml-2">
+                          {grouped[category]
+                            .sort((a, b) => a.role_level - b.role_level)
+                            .map((role) => (
+                              <label key={role.id} className="flex items-start">
+                                <input
+                                  type="checkbox"
+                                  checked={editRoleIds.includes(role.id)}
+                                  onChange={() => toggleRole(role.id, false)}
+                                  className="mt-1 rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                                />
+                                <div className="ml-2">
+                                  <div className="text-sm text-slate-900">{role.display_name}</div>
+                                  {role.description && (
+                                    <div className="text-xs text-slate-500">{role.description}</div>
+                                  )}
+                                </div>
+                              </label>
+                            ))}
+                        </div>
                       </div>
-                    </label>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
 
