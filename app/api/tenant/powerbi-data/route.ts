@@ -93,63 +93,119 @@ export async function GET(request: NextRequest) {
 
     const { access_token } = await tokenResponse.json();
 
-    // Use PowerBI executeQueries API to get data
-    // This gets the underlying data from the report
-    const queriesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/executeQueries`;
+    // Get report pages first
+    const pagesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages`;
+    const pagesResponse = await fetch(pagesUrl, {
+      headers: { 'Authorization': `Bearer ${access_token}` },
+    });
 
-    // Execute a simple query to get all data from the first page
-    const queryResponse = await fetch(queriesUrl, {
+    if (!pagesResponse.ok) {
+      const errorText = await pagesResponse.text();
+      console.error('PowerBI pages fetch failed:', errorText);
+      return NextResponse.json(
+        { error: 'Unable to fetch report pages', details: errorText },
+        { status: 500 }
+      );
+    }
+
+    const pagesData = await pagesResponse.json();
+    const pages = pagesData.value;
+
+    if (!pages || pages.length === 0) {
+      return NextResponse.json(
+        { error: 'No pages found in report' },
+        { status: 404 }
+      );
+    }
+
+    // Use Export to File API to get actual data
+    // This exports the visual data from the first page
+    const exportUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/ExportTo`;
+
+    const exportResponse = await fetch(exportUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        queries: [
-          {
-            query: "EVALUATE TOPN(100, ALLSELECTED())"
-          }
-        ],
-        serializerSettings: {
-          includeNulls: false
+        format: 'JSON',
+        powerBIReportConfiguration: {
+          pages: [
+            {
+              pageName: pages[0].name
+            }
+          ]
         }
       })
     });
 
-    if (!queryResponse.ok) {
-      const errorText = await queryResponse.text();
-      console.error('PowerBI query failed:', errorText);
+    if (!exportResponse.ok) {
+      const errorText = await exportResponse.text();
+      console.error('PowerBI export failed:', errorText);
 
-      // Fallback: Try to get pages and visual data
-      const pagesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages`;
-      const pagesResponse = await fetch(pagesUrl, {
+      // Return page info as fallback
+      return NextResponse.json({
+        source: 'pages_metadata',
+        reportName: templateReport.name,
+        roleName: role.display_name,
+        pages: pages.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+        note: 'Data export not available. Using page metadata only.',
+        exportError: errorText
+      });
+    }
+
+    const exportData = await exportResponse.json();
+    const exportId = exportData.id;
+
+    // Poll for export completion (wait up to 30 seconds)
+    let exportFile = null;
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const statusUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/exports/${exportId}`;
+      const statusResponse = await fetch(statusUrl, {
         headers: { 'Authorization': `Bearer ${access_token}` },
       });
 
-      if (pagesResponse.ok) {
-        const pages = await pagesResponse.json();
-        return NextResponse.json({
-          source: 'pages_metadata',
-          reportName: templateReport.name,
-          pages: pages.value,
-          note: 'Full data export not available. Using page metadata. For detailed data, connect to data source directly.'
-        });
-      }
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
 
-      return NextResponse.json(
-        { error: 'Unable to extract report data', details: errorText },
-        { status: 500 }
-      );
+        if (statusData.status === 'Succeeded') {
+          // Get the exported file
+          const fileUrl = `${statusUrl}/file`;
+          const fileResponse = await fetch(fileUrl, {
+            headers: { 'Authorization': `Bearer ${access_token}` },
+          });
+
+          if (fileResponse.ok) {
+            exportFile = await fileResponse.json();
+            break;
+          }
+        } else if (statusData.status === 'Failed') {
+          console.error('Export failed:', statusData);
+          break;
+        }
+      }
     }
 
-    const queryData = await queryResponse.json();
+    if (exportFile) {
+      return NextResponse.json({
+        source: 'powerbi_export',
+        reportName: templateReport.name,
+        roleName: role.display_name,
+        data: exportFile,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
+    // If export didn't complete, return page info
     return NextResponse.json({
-      source: 'powerbi_query',
+      source: 'pages_metadata',
       reportName: templateReport.name,
       roleName: role.display_name,
-      data: queryData,
-      timestamp: new Date().toISOString(),
+      pages: pages.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+      note: 'Export timeout. Using page metadata only.'
     });
 
   } catch (error: any) {
