@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { fetchPowerBIVisualData } from '@/lib/powerbi/fetch-visual-data';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,47 +27,31 @@ export async function POST(request: NextRequest) {
     let prioritiesData;
     if (fetchPowerBIData) {
       try {
-        // Fetch PowerBI data server-side using the dedicated endpoint
-        // This endpoint will look up the AI prompt configuration and extract the data
-        const powerBIDataUrl = new URL('/api/tenant/powerbi-data', request.url);
-        const powerBIResponse = await fetch(powerBIDataUrl, {
-          headers: {
-            'Cookie': request.headers.get('cookie') || '',
-          },
+        // Fetch PowerBI data directly using shared function (no separate API call)
+        // This uses the same session and avoids cookie forwarding issues
+        prioritiesData = await fetchPowerBIVisualData(session.user.email!, roleId);
+
+        console.log('[Generate Summary] PowerBI data fetched successfully:', {
+          source: prioritiesData.source,
+          visualCount: prioritiesData.visuals?.length || 0,
+          reportName: prioritiesData.reportName,
+          selectedPages: prioritiesData.selectedPages
         });
 
-        if (powerBIResponse.ok) {
-          prioritiesData = await powerBIResponse.json();
-          console.log('[Generate Summary] PowerBI data fetched successfully:', {
-            source: prioritiesData.source,
-            visualCount: prioritiesData.visuals?.length || 0,
-            reportName: prioritiesData.reportName,
-            selectedPages: prioritiesData.selectedPages
+        // Log a sample of the data
+        if (prioritiesData.visuals && prioritiesData.visuals.length > 0) {
+          console.log('[Generate Summary] First visual sample:', {
+            title: prioritiesData.visuals[0].visualTitle,
+            type: prioritiesData.visuals[0].type,
+            dataLength: prioritiesData.visuals[0].data?.length || 0,
+            dataPreview: prioritiesData.visuals[0].data?.substring(0, 200)
           });
-          // Log a sample of the data
-          if (prioritiesData.visuals && prioritiesData.visuals.length > 0) {
-            console.log('[Generate Summary] First visual sample:', {
-              title: prioritiesData.visuals[0].visualTitle,
-              type: prioritiesData.visuals[0].type,
-              dataLength: prioritiesData.visuals[0].data?.length || 0,
-              dataPreview: prioritiesData.visuals[0].data?.substring(0, 200)
-            });
-          }
-        } else {
-          const errorText = await powerBIResponse.text();
-          console.error('[Generate Summary] PowerBI data fetch failed:', powerBIResponse.status, errorText);
-          // Return error to client so we can see what's wrong
-          return NextResponse.json({
-            error: `PowerBI data fetch failed: ${powerBIResponse.status}`,
-            details: errorText,
-            url: powerBIDataUrl.toString()
-          }, { status: 500 });
         }
       } catch (error) {
-        console.error('Error fetching PowerBI data:', error);
+        console.error('[Generate Summary] Error fetching PowerBI data:', error);
         // Return error to client so we can see what's wrong
         return NextResponse.json({
-          error: 'Exception while fetching PowerBI data',
+          error: 'Failed to fetch PowerBI data',
           details: String(error),
           message: (error as Error).message
         }, { status: 500 });
