@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings, List, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import HierarchyView from './hierarchy-view';
 
 interface GlobalRole {
   id: string;
@@ -62,9 +61,6 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
     icon: '',
     sort_order: 0,
     is_active: true,
-    parent_role_id: null as string | null,
-    role_category: '',
-    role_level: 0,
   });
 
   // Module permissions state
@@ -106,9 +102,6 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
       icon: '',
       sort_order: roles.length > 0 ? Math.max(...roles.map(r => r.sort_order)) + 10 : 10,
       is_active: true,
-      parent_role_id: null,
-      role_category: '',
-      role_level: 0,
     });
   };
 
@@ -122,9 +115,6 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
       icon: role.icon || '',
       sort_order: role.sort_order,
       is_active: role.is_active,
-      parent_role_id: role.parent_role_id,
-      role_category: role.role_category || '',
-      role_level: role.role_level,
     });
   };
 
@@ -138,25 +128,6 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
       icon: '',
       sort_order: 0,
       is_active: true,
-      parent_role_id: null,
-      role_category: '',
-      role_level: 0,
-    });
-  };
-
-  const handleCreateChild = (parentRole: GlobalRole) => {
-    setIsCreating(true);
-    setEditingRole(null);
-    setFormData({
-      name: '',
-      display_name: '',
-      description: '',
-      icon: '',
-      sort_order: roles.length > 0 ? Math.max(...roles.map(r => r.sort_order)) + 10 : 10,
-      is_active: true,
-      parent_role_id: parentRole.id,
-      role_category: parentRole.role_category || '',
-      role_level: parentRole.role_level + 1,
     });
   };
 
@@ -483,59 +454,6 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Parent Role
-              </label>
-              <select
-                value={formData.parent_role_id || ''}
-                onChange={(e) => setFormData({ ...formData, parent_role_id: e.target.value || null })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
-              >
-                <option value="">None (Top Level)</option>
-                {roles.filter(r => r.id !== editingRole?.id).map(role => (
-                  <option key={role.id} value={role.id}>
-                    {role.display_name} (Level {role.role_level})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500 mt-1">
-                Leave empty for top-level roles
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Category
-              </label>
-              <input
-                type="text"
-                value={formData.role_category}
-                onChange={(e) => setFormData({ ...formData, role_category: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
-                placeholder="operations, quality, sales, etc."
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Groups related roles together
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Level
-              </label>
-              <input
-                type="number"
-                value={formData.role_level}
-                onChange={(e) => setFormData({ ...formData, role_level: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
-                placeholder="0"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                1=Senior Leader, 2=Leader, 3=Manager, 4=Individual
-              </p>
-            </div>
-
             <div className="md:col-span-2">
               <label className="flex items-center">
                 <input
@@ -568,15 +486,125 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
         </div>
       )}
 
-      {/* Roles Hierarchy */}
-      <HierarchyView
-        roles={roles}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onCreateChild={handleCreateChild}
-        onManagePermissions={handleManagePermissions}
-        onManageTabPermissions={handleManageTabPermissions}
-      />
+      {/* Roles Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Order
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Display Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-slate-200">
+            {roles.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  No roles found. Click "Add Role" to create one.
+                </td>
+              </tr>
+            ) : (
+              roles.map((role, index) => (
+                <tr key={role.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleMove(role, 'up')}
+                        disabled={index === 0}
+                        className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move up"
+                      >
+                        <ArrowUp className="h-4 w-4 text-slate-600" />
+                      </button>
+                      <button
+                        onClick={() => handleMove(role, 'down')}
+                        disabled={index === roles.length - 1}
+                        className="p-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move down"
+                      >
+                        <ArrowDown className="h-4 w-4 text-slate-600" />
+                      </button>
+                      <span className="text-sm text-slate-500 ml-2">{role.sort_order}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <Shield className="h-4 w-4 text-slate-400 mr-2" />
+                      <span className="text-sm font-medium text-slate-900">{role.display_name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm text-slate-600 font-mono">{role.name}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-slate-600">
+                      {role.description || <span className="text-slate-400 italic">No description</span>}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {role.is_active ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <Eye className="h-3 w-3 mr-1" />
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                        <EyeOff className="h-3 w-3 mr-1" />
+                        Inactive
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => handleManagePermissions(role)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      title="Manage module permissions"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleManageTabPermissions(role)}
+                      className="text-purple-600 hover:text-purple-900 mr-3"
+                      title="Manage tab permissions"
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(role)}
+                      className="text-[#00e5c0] hover:text-[#0eafaa] mr-3"
+                      title="Edit role"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(role)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete role"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="mt-4 text-sm text-slate-600">
         <p>

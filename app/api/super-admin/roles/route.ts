@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, display_name, description, icon, sort_order, is_active } = body;
+    const { name, display_name, description, icon, sort_order, is_active, parent_role_id, role_category, role_level } = body;
 
     // Validate required fields
     if (!name || !display_name) {
@@ -85,6 +85,9 @@ export async function POST(request: Request) {
           icon: icon || null,
           sort_order: sort_order || 0,
           is_active: is_active !== undefined ? is_active : true,
+          parent_role_id: parent_role_id || null,
+          role_category: role_category || null,
+          role_level: role_level || 0,
         },
       ])
       .select()

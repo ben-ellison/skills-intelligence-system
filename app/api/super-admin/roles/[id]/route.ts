@@ -21,7 +21,7 @@ export async function PATCH(
 
     const params = await context.params;
     const body = await request.json();
-    const { name, display_name, description, icon, sort_order, is_active } = body;
+    const { name, display_name, description, icon, sort_order, is_active, parent_role_id, role_category, role_level } = body;
 
     const supabase = createAdminClient();
 
@@ -49,6 +49,9 @@ export async function PATCH(
     if (icon !== undefined) updateData.icon = icon;
     if (sort_order !== undefined) updateData.sort_order = sort_order;
     if (is_active !== undefined) updateData.is_active = is_active;
+    if (parent_role_id !== undefined) updateData.parent_role_id = parent_role_id;
+    if (role_category !== undefined) updateData.role_category = role_category;
+    if (role_level !== undefined) updateData.role_level = role_level;
 
     const { data: updatedRole, error } = await supabase
       .from('global_roles')
