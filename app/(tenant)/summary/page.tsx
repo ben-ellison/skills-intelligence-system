@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import PowerBIReport from '../components/PowerBIReport';
+import ReactMarkdown from 'react-markdown';
 
 interface PriorityReportData {
   hasRole: boolean;
@@ -188,12 +189,19 @@ function AISummaryTab() {
       // Fetch the actual PowerBI report data (simplified version for AI)
       // For now, we'll use the priority report metadata as the data
       const simplifiedData = {
-        roleName: priorityData.roleName,
-        reportName: priorityData.report?.name,
-        timestamp: new Date().toISOString(),
-        // In production, you would fetch actual report data from PowerBI API
-        // For now, we'll use placeholder data
-        note: 'This is using placeholder data. In production, this would contain actual PowerBI report data.'
+        note: 'This is a test of the AI summary feature using sample data.',
+        samplePriorities: {
+          highPriority: [
+            'Review overdue apprenticeship reviews (5 pending)',
+            'Address compliance documentation gaps',
+            'Follow up on employer engagement reports'
+          ],
+          mediumPriority: [
+            'Update training schedules for Q4',
+            'Review learner progress tracking'
+          ],
+          trends: 'Overall apprenticeship completion rate is steady at 85%'
+        }
       };
 
       // Call the AI summary generation API
@@ -293,11 +301,9 @@ function AISummaryTab() {
         )}
 
         {summary && (
-          <div className="prose prose-slate max-w-none">
-            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-              <div className="whitespace-pre-wrap text-slate-800" style={{ lineHeight: '1.8' }}>
-                {summary}
-              </div>
+          <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+            <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-ul:text-slate-700">
+              <ReactMarkdown>{summary}</ReactMarkdown>
             </div>
           </div>
         )}
