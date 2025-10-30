@@ -84,14 +84,22 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      // Handle signout - redirect to signin page with a signed out message
+      if (url.includes('/signout')) {
+        return `${baseUrl}/signin?signedOut=true`;
+      }
+
       // Redirect to dashboard after sign in
       if (url === baseUrl || url === `${baseUrl}/`) {
         return `${baseUrl}/dashboard`;
       }
+
       // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`;
+
       // Allows callback URLs on the same origin
       if (new URL(url).origin === baseUrl) return url;
+
       return baseUrl;
     },
   },
