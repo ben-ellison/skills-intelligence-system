@@ -25,25 +25,43 @@ interface AIPrompt {
   prompt_text: string;
   prompt_type: string;
   is_active: boolean;
+  powerbi_report_id: string | null;
+  powerbi_page_names: string[];
   created_at: string;
   updated_at: string;
+  powerbi_reports?: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
+}
+
+interface PowerBIReport {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
 }
 
 interface AISettingsPageWrapperProps {
   systemSettings: SystemSettings | null;
   roles: Role[];
   prompts: AIPrompt[];
+  powerbiReports: PowerBIReport[];
 }
 
 export default function AISettingsPageWrapper({
   systemSettings,
   roles,
   prompts,
+  powerbiReports,
 }: AISettingsPageWrapperProps) {
   const [editingSettings, setEditingSettings] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<AIPrompt | null>(null);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reportPages, setReportPages] = useState<any[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
 
   const [settingsForm, setSettingsForm] = useState({
     azureEndpoint: systemSettings?.azure_openai_endpoint || '',
@@ -58,6 +76,8 @@ export default function AISettingsPageWrapper({
     promptText: '',
     promptType: 'daily_summary',
     isActive: true,
+    powerbiReportId: '',
+    powerbiPageNames: [] as string[],
   });
 
   const handleSaveSettings = async () => {
@@ -112,7 +132,53 @@ export default function AISettingsPageWrapper({
     }
   };
 
-  const openEditPrompt = (prompt: AIPrompt) => {
+  const fetchReportPages = async (reportId: string) => {
+    if (!reportId) {
+      setReportPages([]);
+      return;
+    }
+
+    setLoadingPages(true);
+    try {
+      const response = await fetch(`/api/super-admin/powerbi/reports/${reportId}/pages`);
+      if (response.ok) {
+        const data = await response.json();
+        const sortedPages = (data.pages || []).sort((a: any, b: any) =>
+          (a.displayName || a.name).localeCompare(b.displayName || b.name)
+        );
+        setReportPages(sortedPages);
+      } else {
+        setReportPages([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch report pages:', error);
+      setReportPages([]);
+    } finally {
+      setLoadingPages(false);
+    }
+  };
+
+  const handleReportChange = (reportId: string) => {
+    setPromptForm({ ...promptForm, powerbiReportId: reportId, powerbiPageNames: [] });
+    fetchReportPages(reportId);
+  };
+
+  const handlePageToggle = (pageName: string) => {
+    const currentPages = promptForm.powerbiPageNames;
+    if (currentPages.includes(pageName)) {
+      setPromptForm({
+        ...promptForm,
+        powerbiPageNames: currentPages.filter(p => p !== pageName)
+      });
+    } else {
+      setPromptForm({
+        ...promptForm,
+        powerbiPageNames: [...currentPages, pageName]
+      });
+    }
+  };
+
+  const openEditPrompt = async (prompt: AIPrompt) => {
     setEditingPrompt(prompt);
     setPromptForm({
       roleId: prompt.role_id || '',
@@ -120,7 +186,14 @@ export default function AISettingsPageWrapper({
       promptText: prompt.prompt_text,
       promptType: prompt.prompt_type,
       isActive: prompt.is_active,
+      powerbiReportId: prompt.powerbi_report_id || '',
+      powerbiPageNames: prompt.powerbi_page_names || [],
     });
+
+    // Fetch pages for the selected report
+    if (prompt.powerbi_report_id) {
+      await fetchReportPages(prompt.powerbi_report_id);
+    }
   };
 
   const openCreatePrompt = () => {
@@ -131,7 +204,10 @@ export default function AISettingsPageWrapper({
       promptText: '',
       promptType: 'daily_summary',
       isActive: true,
+      powerbiReportId: '',
+      powerbiPageNames: [],
     });
+    setReportPages([]);
   };
 
   return (
@@ -278,12 +354,23 @@ export default function AISettingsPageWrapper({
           <div className="space-y-4">
             {prompts.map((prompt) => {
               const role = roles.find((r) => r.id === prompt.role_id);
+              const report = prompt.powerbi_reports;
               return (
                 <div key={prompt.id} className="border border-slate-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-slate-900">{prompt.prompt_name}</h3>
                       <p className="text-sm text-slate-600">Role: {role?.display_name || 'All Roles'}</p>
+                      {report && (
+                        <div className="mt-1 text-xs text-slate-500">
+                          <span className="font-medium">Report:</span> {report.name}
+                          {prompt.powerbi_page_names && prompt.powerbi_page_names.length > 0 && (
+                            <span className="ml-2">
+                              ({prompt.powerbi_page_names.length} page{prompt.powerbi_page_names.length !== 1 ? 's' : ''})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => openEditPrompt(prompt)}
@@ -356,6 +443,61 @@ export default function AISettingsPageWrapper({
                       placeholder="You are an AI assistant helping a [role] in an apprenticeship training organization..."
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      PowerBI Report (Optional)
+                      <span className="text-xs text-slate-500 ml-2">
+                        Select a report to automatically extract data for AI analysis
+                      </span>
+                    </label>
+                    <select
+                      value={promptForm.powerbiReportId}
+                      onChange={(e) => handleReportChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#00e5c0] focus:border-transparent"
+                    >
+                      <option value="">No report (use manual data)</option>
+                      {powerbiReports.map((report) => (
+                        <option key={report.id} value={report.id}>
+                          {report.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {promptForm.powerbiReportId && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Pages to Analyze
+                        <span className="text-xs text-slate-500 ml-2">
+                          {loadingPages ? 'Loading pages...' : 'Select one or more pages'}
+                        </span>
+                      </label>
+                      {loadingPages ? (
+                        <div className="text-sm text-slate-500 p-4">Loading pages...</div>
+                      ) : reportPages.length > 0 ? (
+                        <div className="border border-slate-300 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                          {reportPages.map((page: any) => (
+                            <label key={page.name} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={promptForm.powerbiPageNames.includes(page.name)}
+                                onChange={() => handlePageToggle(page.name)}
+                                className="rounded text-[#00e5c0] focus:ring-[#00e5c0]"
+                              />
+                              <span className="ml-2 text-sm text-slate-700">
+                                {page.displayName || page.name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-500 p-4 border border-slate-300 rounded-lg">
+                          No pages found in this report
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <label className="flex items-center">

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Create new prompt
     if (action === 'create_prompt') {
-      const { roleId, promptName, promptText, promptType, isActive } = body;
+      const { roleId, promptName, promptText, promptType, isActive, powerbiReportId, powerbiPageNames } = body;
 
       const { error } = await supabase
         .from('ai_prompts')
@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
           prompt_text: promptText,
           prompt_type: promptType,
           is_active: isActive,
+          powerbi_report_id: powerbiReportId || null,
+          powerbi_page_names: powerbiPageNames || [],
         });
 
       if (error) {
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Update existing prompt
     if (action === 'update_prompt') {
-      const { promptId, roleId, promptName, promptText, promptType, isActive } = body;
+      const { promptId, roleId, promptName, promptText, promptType, isActive, powerbiReportId, powerbiPageNames } = body;
 
       const { error } = await supabase
         .from('ai_prompts')
@@ -72,6 +74,8 @@ export async function POST(request: NextRequest) {
           prompt_text: promptText,
           prompt_type: promptType,
           is_active: isActive,
+          powerbi_report_id: powerbiReportId || null,
+          powerbi_page_names: powerbiPageNames || [],
           updated_at: new Date().toISOString(),
         })
         .eq('id', promptId);
