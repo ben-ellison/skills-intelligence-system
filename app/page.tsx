@@ -1,6 +1,31 @@
+import { headers } from 'next/headers';
 import Link from 'next/link';
+import TenantLandingPage from './page-client';
 
-export default function LandingPage() {
+function getSubdomain(hostname: string): string | null {
+  const hostWithoutPort = hostname.split(':')[0];
+
+  if (hostWithoutPort === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostWithoutPort)) {
+    return null;
+  }
+
+  const parts = hostWithoutPort.split('.');
+  if (parts.length < 3) return null;
+
+  return parts[0];
+}
+
+export default async function LandingPage() {
+  const headersList = await headers();
+  const hostname = headersList.get('host') || '';
+  const subdomain = getSubdomain(hostname);
+
+  // If on a tenant subdomain, show the simple branded landing page
+  if (subdomain) {
+    return <TenantLandingPage />;
+  }
+
+  // Otherwise show the main marketing page for the root domain
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#e6ffff] via-white to-[#00f9e3]/10">
       {/* Header */}
