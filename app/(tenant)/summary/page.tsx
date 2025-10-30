@@ -186,23 +186,27 @@ function AISummaryTab() {
         return;
       }
 
-      // Fetch the actual PowerBI report data (simplified version for AI)
-      // For now, we'll use the priority report metadata as the data
-      const simplifiedData = {
-        note: 'This is a test of the AI summary feature using sample data.',
-        samplePriorities: {
-          highPriority: [
-            'Review overdue apprenticeship reviews (5 pending)',
-            'Address compliance documentation gaps',
-            'Follow up on employer engagement reports'
-          ],
-          mediumPriority: [
-            'Update training schedules for Q4',
-            'Review learner progress tracking'
-          ],
-          trends: 'Overall apprenticeship completion rate is steady at 85%'
+      // Fetch the actual PowerBI report data
+      let powerBIData;
+      try {
+        const powerBIResponse = await fetch('/api/tenant/powerbi-data');
+        if (powerBIResponse.ok) {
+          powerBIData = await powerBIResponse.json();
+          console.log('PowerBI data fetched:', powerBIData);
+        } else {
+          console.warn('Could not fetch PowerBI data, using fallback');
+          powerBIData = {
+            note: 'PowerBI data not available. Using sample data for demonstration.',
+            reportName: priorityData.report?.name || 'Immediate Priorities',
+          };
         }
-      };
+      } catch (err) {
+        console.error('Error fetching PowerBI data:', err);
+        powerBIData = {
+          note: 'PowerBI data fetch failed. Using sample data.',
+          reportName: priorityData.report?.name || 'Immediate Priorities',
+        };
+      }
 
       // Call the AI summary generation API
       const summaryResponse = await fetch('/api/ai/generate-summary', {
@@ -212,7 +216,7 @@ function AISummaryTab() {
         },
         body: JSON.stringify({
           roleId: userData.roleId,
-          prioritiesData: simplifiedData,
+          prioritiesData: powerBIData,
         }),
       });
 
