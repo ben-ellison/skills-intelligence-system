@@ -119,6 +119,31 @@ export async function fetchPowerBIVisualData(
   const { access_token } = await tokenResponse.json();
   console.log('[PowerBI Fetch] Got PowerBI access token');
 
+  // Get report details to find dataset ID
+  const reportDetailsUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}`;
+  const reportDetailsResponse = await fetch(reportDetailsUrl, {
+    headers: { 'Authorization': `Bearer ${access_token}` },
+  });
+
+  if (!reportDetailsResponse.ok) {
+    const reportError = await reportDetailsResponse.text();
+    console.error('[PowerBI Fetch] Failed to get report details:', reportError);
+    throw new Error('Failed to get report details');
+  }
+
+  const reportDetails = await reportDetailsResponse.json();
+  const datasetId = reportDetails.datasetId;
+  const datasetWorkspaceId = reportDetails.datasetWorkspaceId || deployedReport.powerbi_workspace_id;
+
+  console.log('[PowerBI Fetch] Report details:', {
+    datasetId,
+    datasetWorkspaceId
+  });
+
+  if (!datasetId) {
+    throw new Error('No dataset ID found for report');
+  }
+
   // Get report pages first
   const pagesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages`;
   const pagesResponse = await fetch(pagesUrl, {
@@ -157,6 +182,72 @@ export async function fetchPowerBIVisualData(
     throw new Error('Selected pages not found in report');
   }
 
+  // Instead of exporting visuals (which doesn't work via REST API),
+  // query the dataset directly using Execute Queries API
+  console.log('[PowerBI Fetch] Querying dataset directly for data');
+
+  const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${datasetWorkspaceId}/datasets/${datasetId}/executeQueries`;
+
+  // Simple DAX query to get all data from the dataset
+  // This will return all tables and their data
+  const queryBody = {
+    queries: [
+      {
+        query: "EVALUATE TOPN(1000, ALLSELECTED())"
+      }
+    ],
+    serializerSettings: {
+      includeNulls: true
+    }
+  };
+
+  const queryResponse = await fetch(queryUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(queryBody)
+  });
+
+  if (!queryResponse.ok) {
+    const queryError = await queryResponse.text();
+    console.error('[PowerBI Fetch] Dataset query failed:', {
+      status: queryResponse.status,
+      error: queryError.substring(0, 1000)
+    });
+    // Fall back to metadata if query fails
+    console.log('[PowerBI Fetch] Falling back to page metadata');
+    return {
+      source: 'pages_metadata',
+      reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+      selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+      pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+      note: 'Dataset query failed. Using page metadata only.',
+      debug: {
+        pagesAttempted: pagesToProcess.length,
+        queryError: queryError.substring(0, 500)
+      }
+    };
+  }
+
+  const queryData = await queryResponse.json();
+  console.log('[PowerBI Fetch] ✓ Dataset query successful, got results');
+
+  // Return the dataset query results
+  return {
+    source: 'dataset_query',
+    reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+    selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+    datasetData: queryData,
+    timestamp: new Date().toISOString(),
+    debug: {
+      datasetId,
+      pagesProcessed: pagesToProcess.length
+    }
+  };
+
+  // Old visual export code (doesn't work - keeping for reference)
   // Collect visual data from all selected pages
   const allVisualsData: PowerBIVisualData[] = [];
 
