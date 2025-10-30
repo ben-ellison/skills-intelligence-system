@@ -55,6 +55,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
+        // Add auth0 user ID to session
+        session.user.sub = token.sub as string;
+
         // Enrich session with user data from Supabase
         const supabase = createAdminClient();
 
