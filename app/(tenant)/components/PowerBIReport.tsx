@@ -179,7 +179,7 @@ export default function PowerBIReport({
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
           setReportLoading(false);
-        }, 500); // Small delay to ensure smooth transition
+        }, 1500); // Longer delay to ensure PowerBI logo is completely gone
       });
 
       report.on('error', (event: any) => {
@@ -224,14 +224,34 @@ export default function PowerBIReport({
 
   return (
     <div className="h-full flex flex-col relative">
+      {/* CSS to hide PowerBI branding elements */}
+      <style jsx global>{`
+        /* Hide PowerBI logo and branding */
+        .powerbi-logo,
+        .pbi-logo,
+        div[class*="logo"],
+        img[alt*="Power BI"],
+        img[alt*="PowerBI"],
+        a[href*="powerbi.com"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+        }
+
+        /* Hide the white PowerBI loading screen */
+        .powerbi-embed-container iframe {
+          background-color: #033c3a !important;
+        }
+      `}</style>
+
       {/* PowerBI Report Container */}
       {/* Note: Page navigation tabs are handled at the module level in page.tsx */}
       {/* Each module tab corresponds to a specific PowerBI report page */}
-      <div id="powerbi-container" className="flex-1 w-full" />
+      <div id="powerbi-container" className="flex-1 w-full" style={{ backgroundColor: '#033c3a' }} />
 
       {/* Loading Overlay - Covers PowerBI logo during initial load */}
       {reportLoading && (
-        <div className="absolute inset-0 bg-[#033c3a] flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-[#033c3a] flex items-center justify-center" style={{ zIndex: 9999 }}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#00e5c0] mx-auto"></div>
             <p className="mt-6 text-[#e6ffff] text-lg font-medium">Loading report...</p>
