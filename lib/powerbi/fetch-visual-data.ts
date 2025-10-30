@@ -223,128 +223,144 @@ export async function fetchPowerBIVisualData(
         hasSchema: !!datasetInfo.tables
       });
 
-      // Get list of tables from the dataset
-      const tablesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/tables`;
-      debugInfo.step = 'fetching_tables';
-      debugInfo.tablesUrl = tablesUrl;
+      // Use DAX INFO functions to discover schema without /tables endpoint
+      // The /tables endpoint only works for Push API datasets, not regular datasets
+      // So we use DAX system functions instead
+      debugInfo.step = 'discovering_schema_via_dax';
 
-      const tablesResponse = await fetch(tablesUrl, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
+      const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/executeQueries`;
+      debugInfo.queryUrl = queryUrl;
+
+      // First, discover all tables in the dataset using DAX system functions
+      const discoverQuery = {
+        queries: [{
+          query: `
+            EVALUATE
+            SELECTCOLUMNS(
+              INFO.TABLES(),
+              "TableName", [Name],
+              "IsHidden", [IsHidden]
+            )
+          `
+        }],
+        serializerSettings: { includeNulls: true }
+      };
+
+      debugInfo.step = 'executing_schema_discovery';
+
+      const discoverResponse = await fetch(queryUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(discoverQuery)
       });
 
-      debugInfo.step = 'tables_response_received';
-      debugInfo.tablesResponseStatus = tablesResponse.status;
+      debugInfo.step = 'schema_discovery_response_received';
+      debugInfo.discoverResponseStatus = discoverResponse.status;
 
-      if (!tablesResponse.ok) {
-        const errorText = await tablesResponse.text();
-        debugInfo.step = 'tables_fetch_failed';
-        debugInfo.tablesError = errorText;
-        console.error('[PowerBI Fetch] Tables fetch failed:', errorText);
-        throw new Error(`Tables fetch failed: ${tablesResponse.status} - ${errorText}`);
+      if (!discoverResponse.ok) {
+        const errorText = await discoverResponse.text();
+        debugInfo.step = 'schema_discovery_failed';
+        debugInfo.discoverError = errorText;
+        console.error('[PowerBI Fetch] Schema discovery failed:', errorText);
+        throw new Error(`Schema discovery failed: ${discoverResponse.status} - ${errorText}`);
       }
 
-      if (tablesResponse.ok) {
-        const tablesData = await tablesResponse.json();
-        const tables = tablesData.value || [];
+      const discoverData = await discoverResponse.json();
+      const tableRows = discoverData.results?.[0]?.tables?.[0]?.rows || [];
 
-        debugInfo.step = 'tables_retrieved';
-        debugInfo.tableCount = tables.length;
-        debugInfo.tableNames = tables.slice(0, 5).map((t: any) => t.name);
+      // Filter out hidden tables and get first few table names
+      const tables = tableRows
+        .filter((row: any) => !row['[IsHidden]'])
+        .map((row: any) => ({ name: row['[TableName]'] }));
 
-        console.log('[PowerBI Fetch] Found tables:', {
-          count: tables.length,
-          names: tables.slice(0, 5).map((t: any) => t.name)
+      debugInfo.step = 'schema_discovered';
+      debugInfo.tableCount = tables.length;
+      debugInfo.tableNames = tables.slice(0, 5).map((t: any) => t.name);
+
+      console.log('[PowerBI Fetch] Discovered tables via DAX:', {
+        count: tables.length,
+        names: tables.slice(0, 5).map((t: any) => t.name)
+      });
+
+      if (tables.length > 0) {
+        // Query the first few tables for sample data
+        const tableQueries = tables.slice(0, 3).map((table: any) => ({
+          query: `EVALUATE TOPN(20, '${table.name}')`
+        }));
+
+        debugInfo.step = 'executing_data_queries';
+        debugInfo.queryCount = tableQueries.length;
+        debugInfo.queriedTables = tableQueries.map((q: any, idx: number) => tables[idx].name);
+
+        const queryResponse = await fetch(queryUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            queries: tableQueries,
+            serializerSettings: { includeNulls: true }
+          })
         });
 
-        if (tables.length > 0) {
-          // Query the first few tables for sample data
-          const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/executeQueries`;
-          const tableQueries = tables.slice(0, 3).map((table: any) => ({
-            query: `EVALUATE TOPN(20, '${table.name}')`
-          }));
+        debugInfo.step = 'data_query_response_received';
+        debugInfo.queryResponseStatus = queryResponse.status;
 
-          debugInfo.step = 'executing_queries';
-          debugInfo.queryUrl = queryUrl;
-          debugInfo.queryCount = tableQueries.length;
-          debugInfo.queriedTables = tableQueries.map((q: any, idx: number) => tables[idx].name);
+        if (!queryResponse.ok) {
+          const errorText = await queryResponse.text();
+          debugInfo.step = 'data_query_failed';
+          debugInfo.queryError = errorText;
+          console.error('[PowerBI Fetch] Data query failed:', errorText);
+          throw new Error(`Data query failed: ${queryResponse.status} - ${errorText}`);
+        }
 
-          const queryResponse = await fetch(queryUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${access_token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              queries: tableQueries,
-              serializerSettings: { includeNulls: true }
-            })
-          });
+        const queryData = await queryResponse.json();
+        const results = queryData.results || [];
 
-          debugInfo.step = 'query_response_received';
-          debugInfo.queryResponseStatus = queryResponse.status;
+        debugInfo.step = 'data_retrieved';
+        debugInfo.resultCount = results.length;
+        debugInfo.rowsInFirstTable = results[0]?.tables?.[0]?.rows?.length || 0;
 
-          if (!queryResponse.ok) {
-            const errorText = await queryResponse.text();
-            debugInfo.step = 'query_execution_failed';
-            debugInfo.queryError = errorText;
-            console.error('[PowerBI Fetch] Query execution failed:', errorText);
-            throw new Error(`Query execution failed: ${queryResponse.status} - ${errorText}`);
+        console.log('[PowerBI Fetch] Data queries executed successfully:', {
+          tableCount: results.length,
+          rowsInFirstTable: results[0]?.tables?.[0]?.rows?.length || 0
+        });
+
+        // Combine results from all tables
+        const allData: any[] = [];
+        results.forEach((result: any, idx: number) => {
+          const rows = result.tables?.[0]?.rows || [];
+          if (rows.length > 0) {
+            allData.push({
+              tableName: tables[idx].name,
+              rowCount: rows.length,
+              sampleData: rows.slice(0, 10)
+            });
           }
+        });
 
-          if (queryResponse.ok) {
-            const queryData = await queryResponse.json();
-            const results = queryData.results || [];
-
-            debugInfo.step = 'query_results_retrieved';
-            debugInfo.resultCount = results.length;
-            debugInfo.rowsInFirstTable = results[0]?.tables?.[0]?.rows?.length || 0;
-
-            console.log('[PowerBI Fetch] Query executed successfully:', {
-              tableCount: results.length,
-              rowsInFirstTable: results[0]?.tables?.[0]?.rows?.length || 0
-            });
-
-            // Combine results from all tables
-            const allData: any[] = [];
-            results.forEach((result: any, idx: number) => {
-              const rows = result.tables?.[0]?.rows || [];
-              if (rows.length > 0) {
-                allData.push({
-                  tableName: tables[idx].name,
-                  rowCount: rows.length,
-                  sampleData: rows.slice(0, 10)
-                });
-              }
-            });
-
-            if (allData.length > 0) {
-              return {
-                source: 'dataset_query',
-                reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-                selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-                dataExtract: allData,
-                timestamp: new Date().toISOString(),
-                debug: {
-                  datasetId,
-                  pagesProcessed: pagesToProcess.length,
-                  tablesQueried: allData.length,
-                  extractionMethod: 'dataset_query'
-                }
-              };
+        if (allData.length > 0) {
+          return {
+            source: 'dataset_query',
+            reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+            selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+            dataExtract: allData,
+            timestamp: new Date().toISOString(),
+            debug: {
+              datasetId,
+              pagesProcessed: pagesToProcess.length,
+              tablesQueried: allData.length,
+              extractionMethod: 'dax_info_tables'
             }
-          } else {
-            const errorText = await queryResponse.text();
-            debugInfo.step = 'query_response_not_ok';
-            debugInfo.queryResponseError = errorText;
-            console.error('[PowerBI Fetch] Query failed:', errorText);
-          }
-        } else {
-          debugInfo.step = 'no_tables_found';
-          debugInfo.note = 'Tables list was empty';
+          };
         }
       } else {
-        debugInfo.step = 'tables_response_not_ok';
-        console.log('[PowerBI Fetch] Could not fetch tables list');
+        debugInfo.step = 'no_tables_discovered';
+        debugInfo.note = 'No tables found via DAX INFO.TABLES()';
       }
     } else {
       debugInfo.step = 'dataset_response_not_ok';
