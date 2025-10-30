@@ -171,7 +171,12 @@ export async function fetchPowerBIVisualData(
 
       if (!visualsResponse.ok) {
         const visualsError = await visualsResponse.text();
-        console.error(`[PowerBI Fetch] Failed to fetch visuals for page ${page.name}:`, visualsError);
+        console.error(`[PowerBI Fetch] ✗ Failed to fetch visuals for page ${page.name}:`, {
+          status: visualsResponse.status,
+          statusText: visualsResponse.statusText,
+          url: visualsUrl,
+          error: visualsError.substring(0, 1000)
+        });
         continue;
       }
 
