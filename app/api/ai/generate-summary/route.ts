@@ -85,33 +85,60 @@ export async function POST(request: NextRequest) {
     // Call Azure OpenAI API
     const azureUrl = `${endpoint}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
 
-    const azureResponse = await fetch(azureUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful AI assistant for apprenticeship training organizations.',
-          },
-          {
-            role: 'user',
-            content: fullPrompt,
-          },
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
+    console.log('Calling Azure OpenAI:', {
+      url: azureUrl,
+      deployment: deploymentName,
+      hasApiKey: !!apiKey
     });
+
+    let azureResponse;
+    try {
+      azureResponse = await fetch(azureUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': apiKey,
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful AI assistant for apprenticeship training organizations.',
+            },
+            {
+              role: 'user',
+              content: fullPrompt,
+            },
+          ],
+          max_tokens: 1000,
+          temperature: 0.7,
+        }),
+      });
+    } catch (fetchError: any) {
+      console.error('Fetch to Azure OpenAI failed:', fetchError);
+      return NextResponse.json(
+        {
+          error: 'Failed to connect to Azure OpenAI',
+          details: fetchError.message,
+          url: azureUrl
+        },
+        { status: 500 }
+      );
+    }
 
     if (!azureResponse.ok) {
       const errorText = await azureResponse.text();
-      console.error('Azure OpenAI API error:', errorText);
+      console.error('Azure OpenAI API error:', {
+        status: azureResponse.status,
+        statusText: azureResponse.statusText,
+        body: errorText
+      });
       return NextResponse.json(
-        { error: 'Failed to generate summary from Azure OpenAI' },
+        {
+          error: 'Failed to generate summary from Azure OpenAI',
+          details: `${azureResponse.status}: ${errorText}`,
+          url: azureUrl
+        },
         { status: 500 }
       );
     }
