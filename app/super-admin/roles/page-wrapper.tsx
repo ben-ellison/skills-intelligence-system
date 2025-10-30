@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings, List } from 'lucide-react';
 
 interface GlobalRole {
   id: string;
@@ -25,12 +25,27 @@ interface GlobalModule {
   is_active: boolean;
 }
 
+interface ModuleTab {
+  id: string;
+  tab_name: string;
+  module_name: string;
+  sort_order: number;
+  report_id: string;
+  workspace_id: string;
+  page_name: string | null;
+  is_active: boolean;
+  global_modules?: {
+    display_name: string;
+  };
+}
+
 interface GlobalRolesPageWrapperProps {
   initialRoles: GlobalRole[];
   globalModules: GlobalModule[];
+  moduleTabs: ModuleTab[];
 }
 
-export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: GlobalRolesPageWrapperProps) {
+export default function GlobalRolesPageWrapper({ initialRoles, globalModules, moduleTabs }: GlobalRolesPageWrapperProps) {
   const [roles, setRoles] = useState<GlobalRole[]>(initialRoles);
   const [loading, setLoading] = useState(false);
   const [editingRole, setEditingRole] = useState<GlobalRole | null>(null);
@@ -48,6 +63,11 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: 
   const [permissionsRole, setPermissionsRole] = useState<GlobalRole | null>(null);
   const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(false);
+
+  // Tab permissions state
+  const [tabPermissionsRole, setTabPermissionsRole] = useState<GlobalRole | null>(null);
+  const [selectedTabIds, setSelectedTabIds] = useState<string[]>([]);
+  const [loadingTabPermissions, setLoadingTabPermissions] = useState(false);
 
   const fetchRoles = async () => {
     try {
@@ -254,6 +274,65 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: 
   const handleClosePermissions = () => {
     setPermissionsRole(null);
     setSelectedModuleIds([]);
+  };
+
+  const handleManageTabPermissions = async (role: GlobalRole) => {
+    setTabPermissionsRole(role);
+    setLoadingTabPermissions(true);
+
+    try {
+      const response = await fetch(`/api/super-admin/roles/${role.id}/tabs`);
+      if (!response.ok) {
+        throw new Error('Failed to load tab permissions');
+      }
+
+      const data = await response.json();
+      setSelectedTabIds(data.tabIds || []);
+    } catch (error) {
+      console.error('Error loading tab permissions:', error);
+      alert('Failed to load tab permissions');
+    } finally {
+      setLoadingTabPermissions(false);
+    }
+  };
+
+  const handleSaveTabPermissions = async () => {
+    if (!tabPermissionsRole) return;
+
+    try {
+      setLoadingTabPermissions(true);
+      const response = await fetch(`/api/super-admin/roles/${tabPermissionsRole.id}/tabs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tabIds: selectedTabIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save tab permissions');
+      }
+
+      alert('Tab permissions updated successfully');
+      setTabPermissionsRole(null);
+      setSelectedTabIds([]);
+    } catch (error: any) {
+      console.error('Error saving tab permissions:', error);
+      alert(error.message);
+    } finally {
+      setLoadingTabPermissions(false);
+    }
+  };
+
+  const handleToggleTab = (tabId: string) => {
+    setSelectedTabIds(prev =>
+      prev.includes(tabId)
+        ? prev.filter(id => id !== tabId)
+        : [...prev, tabId]
+    );
+  };
+
+  const handleCloseTabPermissions = () => {
+    setTabPermissionsRole(null);
+    setSelectedTabIds([]);
   };
 
   if (loading) {
@@ -487,6 +566,13 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: 
                       <Settings className="h-4 w-4" />
                     </button>
                     <button
+                      onClick={() => handleManageTabPermissions(role)}
+                      className="text-purple-600 hover:text-purple-900 mr-3"
+                      title="Manage tab permissions"
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(role)}
                       className="text-[#00e5c0] hover:text-[#0eafaa] mr-3"
                       title="Edit role"
@@ -574,6 +660,95 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: 
               <button
                 onClick={handleClosePermissions}
                 disabled={loadingPermissions}
+                className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Permissions Modal */}
+      {tabPermissionsRole && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4">
+              <h3 className="text-xl font-bold text-slate-900">
+                Tab Permissions for {tabPermissionsRole.display_name}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Select which tabs this role can access within each module
+              </p>
+            </div>
+
+            <div className="p-6">
+              {loadingTabPermissions ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00e5c0] mx-auto"></div>
+                    <p className="mt-2 text-slate-600">Loading tab permissions...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Group tabs by module */}
+                  {Object.entries(
+                    moduleTabs.reduce((acc, tab) => {
+                      if (!acc[tab.module_name]) {
+                        acc[tab.module_name] = [];
+                      }
+                      acc[tab.module_name].push(tab);
+                      return acc;
+                    }, {} as Record<string, ModuleTab[]>)
+                  ).map(([moduleName, tabs]) => {
+                    const moduleDisplayName = tabs[0]?.global_modules?.display_name || moduleName;
+                    return (
+                      <div key={moduleName} className="border border-slate-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-slate-900 mb-3">
+                          {moduleDisplayName}
+                        </h4>
+                        <div className="space-y-2">
+                          {tabs.map((tab) => (
+                            <label
+                              key={tab.id}
+                              className="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTabIds.includes(tab.id)}
+                                onChange={() => handleToggleTab(tab.id)}
+                                className="h-5 w-5 text-[#00e5c0] focus:ring-[#00e5c0] border-slate-300 rounded"
+                              />
+                              <div className="ml-4 flex-1">
+                                <div className="font-medium text-slate-900">{tab.tab_name}</div>
+                                {tab.page_name && (
+                                  <div className="text-xs text-slate-500 mt-1">Page: {tab.page_name}</div>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3">
+              <button
+                onClick={handleSaveTabPermissions}
+                disabled={loadingTabPermissions}
+                className="flex items-center px-4 py-2 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Tab Permissions
+              </button>
+              <button
+                onClick={handleCloseTabPermissions}
+                disabled={loadingTabPermissions}
                 className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="h-4 w-4 mr-2" />

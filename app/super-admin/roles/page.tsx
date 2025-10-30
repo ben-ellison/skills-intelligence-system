@@ -31,12 +31,21 @@ export default async function GlobalRolesPage() {
     .select('*')
     .order('sort_order', { ascending: true });
 
+  // Fetch all module tabs (global tabs only)
+  const { data: tabs } = await supabase
+    .from('module_tabs')
+    .select('*, global_modules!inner(display_name)')
+    .eq('is_active', true)
+    .order('module_name', { ascending: true })
+    .order('sort_order', { ascending: true });
+
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-7xl mx-auto">
         <GlobalRolesPageWrapper
           initialRoles={roles || []}
           globalModules={modules || []}
+          moduleTabs={tabs || []}
         />
       </div>
     </div>

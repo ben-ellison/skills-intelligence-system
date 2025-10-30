@@ -19,10 +19,10 @@ export async function GET(
     const { moduleName } = await params;
     const supabase = createAdminClient();
 
-    // Get user's organization
+    // Get user's organization and ID
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('organization_id')
+      .select('id, organization_id')
       .eq('email', session.user.email)
       .single();
 
@@ -50,7 +50,7 @@ export async function GET(
     }
 
     // Use the helper function to get effective tabs
-    const { data: tabs, error: tabsError } = await supabase
+    const { data: allTabs, error: tabsError } = await supabase
       .rpc('get_module_tabs_for_tenant', {
         p_organization_id: user.organization_id,
         p_module_id: module.id,
@@ -65,7 +65,34 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(tabs || []);
+    // Get user's accessible tabs based on role permissions
+    const { data: accessibleTabs, error: permissionsError } = await supabase
+      .rpc('get_accessible_tabs_for_user', {
+        p_user_id: user.id,
+        p_module_name: moduleName,
+      });
+
+    if (permissionsError) {
+      console.error('Error fetching accessible tabs:', permissionsError);
+      // If error getting permissions, fall back to showing all org tabs
+      return NextResponse.json(allTabs || []);
+    }
+
+    // If user has no tab permissions, return empty array
+    if (!accessibleTabs || accessibleTabs.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    // Filter organization tabs to only those the user has access to
+    const accessibleTabIds = new Set(
+      accessibleTabs.map((t: any) => t.tab_id)
+    );
+
+    const filteredTabs = (allTabs || []).filter((tab: any) =>
+      accessibleTabIds.has(tab.id)
+    );
+
+    return NextResponse.json(filteredTabs);
   } catch (error) {
     console.error('Error in GET module tabs:', error);
     return NextResponse.json(
