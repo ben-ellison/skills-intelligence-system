@@ -3,6 +3,12 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 import ModuleTabsPageWrapper from './page-wrapper';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Module Tabs',
+};
+
 
 export default async function ModuleTabsPage() {
   const session = await getServerSession(authOptions);

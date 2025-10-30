@@ -3,6 +3,11 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 import SuperAdminPageWrapper from './page-wrapper';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Super Admin Dashboard',
+};
 
 export default async function SuperAdminPage() {
   const session = await getServerSession(authOptions);

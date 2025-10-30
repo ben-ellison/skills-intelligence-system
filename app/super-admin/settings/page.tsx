@@ -3,6 +3,12 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 import SettingsPageWrapper from './page-wrapper';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Settings',
+};
+
 
 export default async function SuperAdminSettingsPage() {
   const session = await getServerSession(authOptions);
