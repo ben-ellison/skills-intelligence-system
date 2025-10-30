@@ -64,6 +64,7 @@ export default function TenantNavigation({
   const [groups, setGroups] = useState<ModuleGroup[]>([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [organizationName, setOrganizationName] = useState<string>('');
+  const [organizationLogo, setOrganizationLogo] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function TenantNavigation({
       if (response.ok) {
         const data = await response.json();
         setOrganizationName(data.name || 'Dashboard');
+        setOrganizationLogo(data.logo_url || null);
       }
     } catch (error) {
       console.error('Error fetching organization:', error);
@@ -159,12 +161,28 @@ export default function TenantNavigation({
         {/* Logo/Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[#0eafaa]">
           {sidebarOpen ? (
-            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
-              Skills Intelligence System
+            <Link href="/modules" className="flex items-center">
+              {organizationLogo ? (
+                <img
+                  src={organizationLogo}
+                  alt={organizationName}
+                  className="h-10 w-auto max-w-[180px] object-contain"
+                />
+              ) : (
+                <span className="text-lg font-bold text-[#033c3a]">Skills Intelligence System</span>
+              )}
             </Link>
           ) : (
-            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
-              SIS
+            <Link href="/modules" className="flex items-center justify-center">
+              {organizationLogo ? (
+                <img
+                  src={organizationLogo}
+                  alt={organizationName}
+                  className="h-8 w-auto object-contain"
+                />
+              ) : (
+                <span className="text-lg font-bold text-[#033c3a]">SIS</span>
+              )}
             </Link>
           )}
           <button
@@ -276,9 +294,19 @@ export default function TenantNavigation({
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="h-16 bg-[#e6ffff] border-b border-[#0eafaa] flex items-center justify-between px-6">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {organizationName || 'Dashboard'}
-          </h1>
+          <div className="flex items-center">
+            {organizationLogo ? (
+              <img
+                src={organizationLogo}
+                alt={organizationName}
+                className="h-8 w-auto max-w-[200px] object-contain"
+              />
+            ) : (
+              <h1 className="text-xl font-semibold text-slate-900">
+                {organizationName || 'Dashboard'}
+              </h1>
+            )}
+          </div>
 
           <div className="flex items-center space-x-4">
             {/* Notifications */}
