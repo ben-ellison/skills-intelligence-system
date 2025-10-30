@@ -73,6 +73,17 @@ export async function middleware(request: NextRequest) {
   const isSuperAdminRoute = pathname.startsWith('/super-admin');
   const isTenantAdminRoute = pathname.startsWith('/tenant-admin');
 
+  // Super admin portal should ONLY be accessible from main domain (no subdomain)
+  if (isSuperAdminRoute && subdomain) {
+    console.warn('Super admin access attempted from tenant subdomain:', {
+      subdomain,
+      pathname,
+      userId: user?.sub
+    });
+    const unauthorizedUrl = new URL('/dashboard', request.url);
+    return NextResponse.redirect(unauthorizedUrl);
+  }
+
   if ((isSuperAdminRoute || isTenantAdminRoute) && user) {
     try {
       // Create Supabase client for role verification
