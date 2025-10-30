@@ -188,12 +188,12 @@ export async function fetchPowerBIVisualData(
 
   const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${datasetWorkspaceId}/datasets/${datasetId}/executeQueries`;
 
-  // Simple DAX query to get all data from the dataset
-  // This will return all tables and their data
+  // Use DMV query to get all measures in the dataset
+  // This will show us what calculated metrics are available
   const queryBody = {
     queries: [
       {
-        query: "EVALUATE TOPN(1000, ALLSELECTED())"
+        query: "EVALUATE INFO.MEASURES()"
       }
     ],
     serializerSettings: {
