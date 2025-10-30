@@ -42,30 +42,28 @@ export default function SummaryPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Tab Navigation */}
-      <div className="bg-[#e6ffff] border-b border-[#0eafaa]">
-        <div className="px-6">
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setActiveTab('powerbi')}
-              className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                activeTab === 'powerbi'
-                  ? 'border-[#00e5c0] text-[#033c3a] bg-white'
-                  : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
-              }`}
-            >
-              Immediate Priorities
-            </button>
-            <button
-              onClick={() => setActiveTab('ai')}
-              className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                activeTab === 'ai'
-                  ? 'border-[#00e5c0] text-[#033c3a] bg-white'
-                  : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
-              }`}
-            >
-              AiVII Summary
-            </button>
-          </div>
+      <div className="flex justify-center py-3">
+        <div className="inline-flex bg-[#00e5c0] rounded-lg p-1 ml-8">
+          <button
+            onClick={() => setActiveTab('powerbi')}
+            className={`px-6 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors ${
+              activeTab === 'powerbi'
+                ? 'bg-[#033c3a] text-[#e6ffff]'
+                : 'text-[#033c3a] hover:bg-[#033c3a]/10'
+            }`}
+          >
+            Immediate Priorities
+          </button>
+          <button
+            onClick={() => setActiveTab('ai')}
+            className={`px-6 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors ${
+              activeTab === 'ai'
+                ? 'bg-[#033c3a] text-[#e6ffff]'
+                : 'text-[#033c3a] hover:bg-[#033c3a]/10'
+            }`}
+          >
+            AiVII Summary
+          </button>
         </div>
       </div>
 
