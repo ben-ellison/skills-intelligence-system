@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.11.0",
     "@radix-ui/react-slot": "^1.2.3",
+    "@sparticuz/chromium": "^141.0.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.76.1",
     "class-variance-authority": "^0.7.1",
@@ -23,6 +24,7 @@
     "openai": "^6.7.0",
     "powerbi-client": "^2.23.9",
     "powerbi-client-react": "^2.0.0",
+    "puppeteer-core": "^24.27.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

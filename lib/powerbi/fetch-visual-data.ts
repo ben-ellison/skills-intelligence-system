@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { extractPowerBIDataWithPuppeteer } from './extract-with-puppeteer';
 
 interface PowerBIVisualData {
   pageName: string;
@@ -182,70 +183,55 @@ export async function fetchPowerBIVisualData(
     throw new Error('Selected pages not found in report');
   }
 
-  // Instead of exporting visuals (which doesn't work via REST API),
-  // query the dataset directly using Execute Queries API
-  console.log('[PowerBI Fetch] Querying dataset directly for data');
+  // Use Puppeteer to extract data from PowerBI report
+  // This is the same approach the original portal uses - load the report in a headless browser
+  // and use the PowerBI JavaScript SDK to extract data from visuals
+  console.log('[PowerBI Fetch] Using Puppeteer to extract data from embedded report');
 
-  const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${datasetWorkspaceId}/datasets/${datasetId}/executeQueries`;
+  // Build the embed URL
+  const embedUrl = `https://app.powerbi.com/reportEmbed?reportId=${deployedReport.powerbi_report_id}&groupId=${deployedReport.powerbi_workspace_id}`;
 
-  // Use DMV query to get all measures in the dataset
-  // This will show us what calculated metrics are available
-  const queryBody = {
-    queries: [
-      {
-        query: "EVALUATE INFO.MEASURES()"
-      }
-    ],
-    serializerSettings: {
-      includeNulls: true
+  try {
+    // Extract data using Puppeteer
+    const extractedData = await extractPowerBIDataWithPuppeteer(embedUrl, access_token);
+
+    if (extractedData.success && extractedData.visuals && extractedData.visuals.length > 0) {
+      console.log('[PowerBI Fetch] ✓ Successfully extracted data via Puppeteer:', {
+        visualCount: extractedData.visuals.length,
+        pageCount: extractedData.pageCount
+      });
+
+      return {
+        source: 'powerbi_visuals',
+        reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+        selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+        visuals: extractedData.visuals,
+        timestamp: new Date().toISOString(),
+        debug: {
+          datasetId,
+          pagesProcessed: pagesToProcess.length,
+          visualsExtracted: extractedData.visuals.length,
+          extractionMethod: 'puppeteer'
+        }
+      };
+    } else {
+      throw new Error('No visuals extracted from Puppeteer');
     }
-  };
-
-  const queryResponse = await fetch(queryUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(queryBody)
-  });
-
-  if (!queryResponse.ok) {
-    const queryError = await queryResponse.text();
-    console.error('[PowerBI Fetch] Dataset query failed:', {
-      status: queryResponse.status,
-      error: queryError.substring(0, 1000)
-    });
-    // Fall back to metadata if query fails
-    console.log('[PowerBI Fetch] Falling back to page metadata');
+  } catch (puppeteerError: any) {
+    console.error('[PowerBI Fetch] Puppeteer extraction failed:', puppeteerError.message);
+    // Fall back to metadata if Puppeteer fails
     return {
       source: 'pages_metadata',
       reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
       selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
       pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-      note: 'Dataset query failed. Using page metadata only.',
+      note: 'Puppeteer extraction failed. Using page metadata only.',
       debug: {
         pagesAttempted: pagesToProcess.length,
-        queryError: queryError.substring(0, 500)
+        extractionError: puppeteerError.message
       }
     };
   }
-
-  const queryData = await queryResponse.json();
-  console.log('[PowerBI Fetch] ✓ Dataset query successful, got results');
-
-  // Return the dataset query results
-  return {
-    source: 'dataset_query',
-    reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-    selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-    datasetData: queryData,
-    timestamp: new Date().toISOString(),
-    debug: {
-      datasetId,
-      pagesProcessed: pagesToProcess.length
-    }
-  };
 
   // Old visual export code (doesn't work - keeping for reference)
   // Collect visual data from all selected pages
