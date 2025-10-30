@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         activated_at,
         last_login_at,
         primary_role_id,
-        user_roles (
+        user_roles!user_roles_user_id_fkey (
           global_role_id,
           global_roles (
             id,
