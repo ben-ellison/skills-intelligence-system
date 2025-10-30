@@ -26,61 +26,27 @@ export async function POST(request: NextRequest) {
     let prioritiesData;
     if (fetchPowerBIData) {
       try {
-        // Get user's organization and report info
-        const { data: user } = await supabase
-          .from('users')
-          .select(`
-            organization_id,
-            primary_role_id,
-            global_roles:primary_role_id (
-              priority_report_id,
-              powerbi_reports:priority_report_id (
-                id,
-                name
-              )
-            )
-          `)
-          .eq('auth0_user_id', session.user.sub)
-          .single();
+        // Fetch PowerBI data server-side using the dedicated endpoint
+        // This endpoint will look up the AI prompt configuration and extract the data
+        const powerBIDataUrl = new URL('/api/tenant/powerbi-data', request.url);
+        const powerBIResponse = await fetch(powerBIDataUrl, {
+          headers: {
+            'Cookie': request.headers.get('cookie') || '',
+          },
+        });
 
-        if (user?.global_roles && user.global_roles.powerbi_reports) {
-          const role = user.global_roles as any;
-          const templateReport = role.powerbi_reports;
-
-          // Get deployed report
-          const { data: deployedReport } = await supabase
-            .from('organization_powerbi_reports')
-            .select('powerbi_report_id, powerbi_workspace_id')
-            .eq('organization_id', user.organization_id)
-            .eq('template_report_id', templateReport.id)
-            .eq('deployment_status', 'active')
-            .single();
-
-          if (deployedReport) {
-            // Fetch PowerBI data server-side
-            const powerBIDataUrl = new URL('/api/tenant/powerbi-data', request.url);
-            const powerBIResponse = await fetch(powerBIDataUrl, {
-              headers: {
-                'Cookie': request.headers.get('cookie') || '',
-              },
-            });
-
-            if (powerBIResponse.ok) {
-              prioritiesData = await powerBIResponse.json();
-            } else {
-              prioritiesData = {
-                note: 'PowerBI data export not available. Using report metadata.',
-                reportName: templateReport.name,
-              };
-            }
-          } else {
-            prioritiesData = {
-              note: 'Report not deployed to organization.',
-            };
-          }
+        if (powerBIResponse.ok) {
+          prioritiesData = await powerBIResponse.json();
+          console.log('PowerBI data fetched successfully:', {
+            source: prioritiesData.source,
+            visualCount: prioritiesData.visuals?.length || 0,
+          });
         } else {
+          const errorText = await powerBIResponse.text();
+          console.error('PowerBI data fetch failed:', powerBIResponse.status, errorText);
           prioritiesData = {
-            note: 'No priority report configured for user role.',
+            note: 'PowerBI data export not available. Using report metadata.',
+            error: errorText,
           };
         }
       } catch (error) {
