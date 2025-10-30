@@ -29,14 +29,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get all users in the organization - simplified query for debugging
+    // Get all users in the organization - ultra-simplified for debugging
+    console.log('[DEBUG] Current user:', currentUser);
     console.log('[DEBUG] Fetching users for organization:', currentUser.organization_id);
 
+    // First, try to just count users to test basic table access
+    const { count, error: countError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    console.log('[DEBUG] Total users count:', count, 'error:', countError);
+
+    // Now try to get users for this organization
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('*')
-      .eq('organization_id', currentUser.organization_id)
-      .order('email', { ascending: true });
+      .select('id, email, name, is_tenant_admin, status, invited_at, activated_at, last_login_at')
+      .eq('organization_id', currentUser.organization_id);
 
     if (usersError) {
       console.error('[ERROR] Error fetching users:', JSON.stringify(usersError, null, 2));
