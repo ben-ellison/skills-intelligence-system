@@ -16,7 +16,7 @@ export async function GET() {
     // Fetch user data including role
     const { data: userData, error } = await supabase
       .from('users')
-      .select('id, role_id, organization_id, global_roles(id, name, display_name)')
+      .select('id, primary_role_id, organization_id, global_roles!users_primary_role_id_fkey(id, name, display_name)')
       .eq('auth0_user_id', session.user.sub)
       .single();
 
@@ -27,7 +27,7 @@ export async function GET() {
 
     return NextResponse.json({
       userId: userData.id,
-      roleId: userData.role_id,
+      roleId: userData.primary_role_id,
       organizationId: userData.organization_id,
       role: userData.global_roles,
     });
