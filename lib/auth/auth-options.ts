@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: true,
   pages: {
-    signOut: '/signin?signedOut=true',
+    signOut: '/signout',
   },
   callbacks: {
     async jwt({ token, account, profile }) {
