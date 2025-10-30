@@ -70,6 +70,12 @@ export const authOptions: NextAuthOptions = {
             session.user.isTenantAdmin = user.is_tenant_admin;
             session.user.roleId = user.role_id;
             session.user.role = user.is_super_admin ? 'super-admin' : (user.is_tenant_admin ? 'tenant-admin' : 'user');
+
+            // Update last_login_at timestamp (fire and forget)
+            void supabase
+              .from('users')
+              .update({ last_login_at: new Date().toISOString() })
+              .eq('id', user.id);
           }
         } catch (error) {
           console.error('Error enriching session:', error);
