@@ -23,12 +23,14 @@ export default function PowerBIReport({
   const [accessToken, setAccessToken] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(true);
   const reportRef = useRef<pbi.Embed | null>(null);
 
   useEffect(() => {
     // Reset state when switching to a different report
     setEmbedUrl('');
     setAccessToken('');
+    setReportLoading(true);
     reportRef.current = null;
     fetchEmbedToken();
   }, [reportId, templateReportId, workspaceId]);
@@ -172,6 +174,14 @@ export default function PowerBIReport({
         }
       });
 
+      report.on('rendered', () => {
+        console.log('Report rendered!');
+        // Hide loading overlay once report is fully rendered
+        setTimeout(() => {
+          setReportLoading(false);
+        }, 500); // Small delay to ensure smooth transition
+      });
+
       report.on('error', (event: any) => {
         console.error('PowerBI Report Error:', event.detail);
         setError('PowerBI error: ' + JSON.stringify(event.detail));
@@ -213,11 +223,21 @@ export default function PowerBIReport({
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
       {/* PowerBI Report Container */}
       {/* Note: Page navigation tabs are handled at the module level in page.tsx */}
       {/* Each module tab corresponds to a specific PowerBI report page */}
       <div id="powerbi-container" className="flex-1 w-full" />
+
+      {/* Loading Overlay - Covers PowerBI logo during initial load */}
+      {reportLoading && (
+        <div className="absolute inset-0 bg-[#033c3a] flex items-center justify-center z-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#00e5c0] mx-auto"></div>
+            <p className="mt-6 text-[#e6ffff] text-lg font-medium">Loading report...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
