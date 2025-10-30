@@ -3,7 +3,9 @@ import chromium from '@sparticuz/chromium';
 
 export async function extractPowerBIDataWithPuppeteer(
   embedUrl: string,
-  accessToken: string
+  embedToken: string,
+  reportId: string,
+  workspaceId: string
 ): Promise<any> {
   console.log('[Puppeteer] Starting headless browser to extract PowerBI data');
 
@@ -23,87 +25,154 @@ export async function extractPowerBIDataWithPuppeteer(
     // Set a reasonable timeout
     page.setDefaultTimeout(25000); // 25 seconds (below Vercel's 30s limit)
 
-    // Navigate to PowerBI embed page
-    console.log('[Puppeteer] Loading PowerBI report');
-    await page.goto(embedUrl, { waitUntil: 'networkidle0' });
+    // Create a simple HTML page that embeds the PowerBI report
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #reportContainer { width: 100%; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="reportContainer"></div>
+    <script>
+        window.extractionComplete = false;
+        window.extractedData = null;
+        window.extractionError = null;
 
-    // Inject PowerBI JavaScript SDK
-    await page.addScriptTag({
-      url: 'https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js'
+        (async function() {
+            try {
+                const models = window['powerbi-client'].models;
+                const powerbi = new window['powerbi-client'].service.Service(
+                    models.factories.hpmFactory,
+                    models.factories.wpmpFactory,
+                    models.factories.routerFactory
+                );
+
+                const config = {
+                    type: 'report',
+                    tokenType: models.TokenType.Embed,
+                    accessToken: '${embedToken}',
+                    embedUrl: 'https://app.powerbi.com/reportEmbed?reportId=${reportId}&groupId=${workspaceId}',
+                    id: '${reportId}',
+                    permissions: models.Permissions.Read,
+                    settings: {
+                        filterPaneEnabled: false,
+                        navContentPaneEnabled: false,
+                        panes: {
+                            filters: { visible: false },
+                            pageNavigation: { visible: false }
+                        }
+                    }
+                };
+
+                console.log('Embedding report with config:', config);
+                const reportContainer = document.getElementById('reportContainer');
+                const report = powerbi.embed(reportContainer, config);
+
+                // Wait for report to load
+                await new Promise((resolve, reject) => {
+                    report.on('loaded', () => {
+                        console.log('Report loaded successfully');
+                        resolve();
+                    });
+                    report.on('error', (event) => {
+                        console.error('Report load error:', event.detail);
+                        reject(new Error('Report failed to load'));
+                    });
+
+                    // Timeout after 20 seconds
+                    setTimeout(() => reject(new Error('Report load timeout')), 20000);
+                });
+
+                // Get all pages
+                console.log('Getting report pages...');
+                const pages = await report.getPages();
+                console.log('Found pages:', pages.length);
+
+                const extractedData = [];
+
+                // Extract data from each page
+                for (const page of pages) {
+                    console.log('Processing page:', page.displayName);
+                    const pageName = page.name;
+                    const pageDisplayName = page.displayName;
+
+                    // Get all visuals on the page
+                    const visuals = await page.getVisuals();
+                    console.log('Found visuals on page:', visuals.length);
+
+                    for (const visual of visuals) {
+                        try {
+                            console.log('Exporting data from visual:', visual.name);
+                            // Export data from visual
+                            const exportedData = await visual.exportData(window['powerbi-client'].models.ExportDataType.Summarized);
+
+                            extractedData.push({
+                                pageName: pageName,
+                                pageDisplayName: pageDisplayName,
+                                visualName: visual.name,
+                                visualTitle: visual.title,
+                                visualType: visual.type,
+                                data: exportedData
+                            });
+                            console.log('Successfully exported from visual:', visual.name);
+                        } catch (error) {
+                            console.error('Failed to export from visual', visual.name, ':', error);
+                        }
+                    }
+                }
+
+                window.extractedData = {
+                    success: true,
+                    visuals: extractedData,
+                    pageCount: pages.length
+                };
+                window.extractionComplete = true;
+                console.log('Data extraction complete. Total visuals:', extractedData.length);
+
+            } catch (error) {
+                console.error('Extraction error:', error);
+                window.extractionError = error.message;
+                window.extractionComplete = true;
+            }
+        })();
+    </script>
+</body>
+</html>`;
+
+    // Load the HTML content
+    console.log('[Puppeteer] Loading PowerBI embed page');
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    // Wait for extraction to complete
+    console.log('[Puppeteer] Waiting for data extraction to complete');
+    await page.waitForFunction(
+      () => window['extractionComplete'] === true,
+      { timeout: 25000 }
+    );
+
+    // Get the extracted data
+    const reportData = await page.evaluate(() => {
+      if (window['extractionError']) {
+        return { success: false, error: window['extractionError'] };
+      }
+      return window['extractedData'];
     });
-
-    // Extract data from PowerBI report using the SDK
-    console.log('[Puppeteer] Extracting data from report');
-    const reportData = await page.evaluate(async (token) => {
-      // Get the iframe containing the Power BI report
-      const iframe = document.querySelector('iframe');
-      if (!iframe) {
-        return { error: 'No PowerBI iframe found' };
-      }
-
-      // Get Power BI embed configuration
-      const embedContainer = iframe.parentElement;
-      const config = {
-        type: 'report',
-        tokenType: window['powerbi-client'].models.TokenType.Embed,
-        accessToken: token,
-        embedUrl: iframe.src,
-        id: iframe.src.match(/reportId=([^&]+)/)?.[1] || '',
-        settings: {
-          filterPaneEnabled: false,
-          navContentPaneEnabled: false
-        }
-      };
-
-      // Embed the report
-      const powerbi = window['powerbi-client'];
-      const report = powerbi.embed(embedContainer, config);
-
-      // Wait for report to load
-      await new Promise((resolve) => {
-        report.on('loaded', resolve);
-      });
-
-      // Get all pages
-      const pages = await report.getPages();
-      const extractedData: any[] = [];
-
-      // Extract data from each page
-      for (const page of pages) {
-        const pageName = page.name;
-        const pageDisplayName = page.displayName;
-
-        // Get all visuals on the page
-        const visuals = await page.getVisuals();
-
-        for (const visual of visuals) {
-          try {
-            // Export data from visual
-            const data = await visual.exportData();
-            extractedData.push({
-              pageName,
-              pageDisplayName,
-              visualName: visual.name,
-              visualTitle: visual.title,
-              visualType: visual.type,
-              data: data
-            });
-          } catch (error) {
-            console.error(`Failed to export from visual ${visual.name}:`, error);
-          }
-        }
-      }
-
-      return {
-        success: true,
-        visuals: extractedData,
-        pageCount: pages.length
-      };
-    }, accessToken);
 
     console.log('[Puppeteer] Data extraction complete:', {
-      visualCount: reportData.visuals?.length || 0
+      success: reportData.success,
+      visualCount: reportData.visuals?.length || 0,
+      pageCount: reportData.pageCount || 0
     });
+
+    if (!reportData.success) {
+      throw new Error(reportData.error || 'Unknown extraction error');
+    }
 
     return reportData;
 

@@ -188,12 +188,37 @@ export async function fetchPowerBIVisualData(
   // and use the PowerBI JavaScript SDK to extract data from visuals
   console.log('[PowerBI Fetch] Using Puppeteer to extract data from embedded report');
 
+  // First, generate an embed token for the report
+  console.log('[PowerBI Fetch] Generating embed token');
+  const embedTokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/GenerateToken`;
+  const embedTokenResponse = await fetch(embedTokenUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      accessLevel: 'View',
+      allowSaveAs: false
+    })
+  });
+
+  if (!embedTokenResponse.ok) {
+    const error = await embedTokenResponse.text();
+    throw new Error(`Failed to generate embed token: ${error}`);
+  }
+
+  const embedTokenData = await embedTokenResponse.json();
+  const embedToken = embedTokenData.token;
+
   // Build the embed URL
   const embedUrl = `https://app.powerbi.com/reportEmbed?reportId=${deployedReport.powerbi_report_id}&groupId=${deployedReport.powerbi_workspace_id}`;
 
+  console.log('[PowerBI Fetch] Embed token generated, launching Puppeteer');
+
   try {
-    // Extract data using Puppeteer
-    const extractedData = await extractPowerBIDataWithPuppeteer(embedUrl, access_token);
+    // Extract data using Puppeteer with the embed token
+    const extractedData = await extractPowerBIDataWithPuppeteer(embedUrl, embedToken, deployedReport.powerbi_report_id, deployedReport.powerbi_workspace_id);
 
     if (extractedData.success && extractedData.visuals && extractedData.visuals.length > 0) {
       console.log('[PowerBI Fetch] ✓ Successfully extracted data via Puppeteer:', {
