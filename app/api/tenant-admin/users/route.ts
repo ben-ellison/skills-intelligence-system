@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all users in the organization - simplified query for debugging
+    console.log('[DEBUG] Fetching users for organization:', currentUser.organization_id);
+
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('*')
@@ -37,13 +39,17 @@ export async function GET(request: NextRequest) {
       .order('email', { ascending: true });
 
     if (usersError) {
-      console.error('Error fetching users:', usersError);
+      console.error('[ERROR] Error fetching users:', JSON.stringify(usersError, null, 2));
       return NextResponse.json({
         error: 'Failed to fetch users',
-        details: usersError.message,
+        message: usersError.message,
+        details: usersError.details,
+        hint: usersError.hint,
         code: usersError.code
       }, { status: 500 });
     }
+
+    console.log('[DEBUG] Successfully fetched', users?.length || 0, 'users');
 
     return NextResponse.json(users);
   } catch (error) {
