@@ -95,16 +95,16 @@ export default function ModulePage({
       {/* Module Tabs (configured in Super Admin) */}
       {tabs.length > 1 && (
         <div className="bg-[#e6ffff] border-b border-[#0eafaa]">
-          <div className="px-6">
-            <div className="flex space-x-1 overflow-x-auto">
+          <div className="px-6 py-2">
+            <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-[#0eafaa]/20">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setSelectedTab(tab)}
-                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  className={`px-6 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors ${
                     selectedTab?.id === tab.id
-                      ? 'border-[#00e5c0] text-[#033c3a] bg-white'
-                      : 'border-transparent text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#00f9e3]/20'
+                      ? 'bg-[#00e5c0] text-[#033c3a] shadow-sm'
+                      : 'text-[#033c3a]/70 hover:text-[#033c3a] hover:bg-[#e6ffff]'
                   }`}
                 >
                   {tab.tab_name}
