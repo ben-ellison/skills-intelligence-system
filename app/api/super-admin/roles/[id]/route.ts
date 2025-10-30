@@ -15,7 +15,7 @@ export async function PATCH(
     }
 
     // Check if user is super admin
-    if (session.user.role !== 'super_admin') {
+    if (session.user.role !== 'super-admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -84,7 +84,7 @@ export async function DELETE(
     }
 
     // Check if user is super admin
-    if (session.user.role !== 'super_admin') {
+    if (session.user.role !== 'super-admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
