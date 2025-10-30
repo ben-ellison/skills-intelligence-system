@@ -12,6 +12,9 @@ export const authOptions: NextAuthOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   debug: true,
+  pages: {
+    signOut: '/signin?signedOut=true',
+  },
   callbacks: {
     async jwt({ token, account, profile }) {
       // Initial sign in
