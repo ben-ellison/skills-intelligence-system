@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,6 +19,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const body = await request.json();
     const { name, display_name, description, icon, sort_order, is_active } = body;
 
@@ -74,7 +75,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -88,6 +89,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const supabase = createAdminClient();
 
     // Check if any users are assigned this role
