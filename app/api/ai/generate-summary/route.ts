@@ -41,6 +41,18 @@ export async function POST(request: NextRequest) {
     const apiVersion = systemSettings.azure_openai_api_version || process.env.AZURE_OPENAI_API_VERSION;
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
 
+    console.log('Azure OpenAI Config:', {
+      endpoint: endpoint ? 'SET' : 'MISSING',
+      deploymentName: deploymentName ? 'SET' : 'MISSING',
+      apiVersion: apiVersion ? 'SET' : 'MISSING',
+      apiKey: apiKey ? 'SET' : 'MISSING',
+      fromDB: {
+        endpoint: systemSettings.azure_openai_endpoint ? 'SET' : 'MISSING',
+        deploymentName: systemSettings.azure_openai_deployment_name ? 'SET' : 'MISSING',
+        apiVersion: systemSettings.azure_openai_api_version ? 'SET' : 'MISSING',
+      }
+    });
+
     if (!endpoint || !deploymentName || !apiVersion || !apiKey) {
       return NextResponse.json(
         { error: 'Azure OpenAI is not properly configured' },
