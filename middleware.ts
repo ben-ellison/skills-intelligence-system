@@ -8,6 +8,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { createClient } from '@supabase/supabase-js';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -68,18 +69,56 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://app.powerbi.com https://*.auth0.com https://cdn.jsdelivr.net https://cdn.powerbi.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.powerbi.com https://*.auth0.com; frame-src https://app.powerbi.com https://*.auth0.com;"
   );
 
-  // Check super admin access
+  // Check super admin and tenant admin access
   const isSuperAdminRoute = pathname.startsWith('/super-admin');
-  if (isSuperAdminRoute && user) {
-    // TODO: Check roles from database
-    // For now, allow access
-  }
-
-  // Check tenant admin access
   const isTenantAdminRoute = pathname.startsWith('/tenant-admin');
-  if (isTenantAdminRoute && user) {
-    // TODO: Check roles from database
-    // For now, allow access
+
+  if ((isSuperAdminRoute || isTenantAdminRoute) && user) {
+    try {
+      // Create Supabase client for role verification
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Fetch user's admin flags from database
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('is_super_admin, is_tenant_admin')
+        .eq('auth0_user_id', user.sub)
+        .single();
+
+      if (error || !userData) {
+        console.error('Error fetching user roles in middleware:', error);
+        const unauthorizedUrl = new URL('/dashboard', request.url);
+        return NextResponse.redirect(unauthorizedUrl);
+      }
+
+      // Check super admin access
+      if (isSuperAdminRoute && !userData.is_super_admin) {
+        console.warn('Unauthorized super-admin access attempt:', {
+          pathname,
+          userId: user.sub,
+          isSuperAdmin: userData.is_super_admin
+        });
+        const unauthorizedUrl = new URL('/dashboard', request.url);
+        return NextResponse.redirect(unauthorizedUrl);
+      }
+
+      // Check tenant admin access
+      if (isTenantAdminRoute && !userData.is_tenant_admin && !userData.is_super_admin) {
+        console.warn('Unauthorized tenant-admin access attempt:', {
+          pathname,
+          userId: user.sub,
+          isTenantAdmin: userData.is_tenant_admin
+        });
+        const unauthorizedUrl = new URL('/dashboard', request.url);
+        return NextResponse.redirect(unauthorizedUrl);
+      }
+    } catch (error) {
+      console.error('Error in role check middleware:', error);
+      const unauthorizedUrl = new URL('/dashboard', request.url);
+      return NextResponse.redirect(unauthorizedUrl);
+    }
   }
 
   return response;
