@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate Azure OpenAI configuration
-    const endpoint = systemSettings.azure_openai_endpoint || process.env.AZURE_OPENAI_ENDPOINT;
+    let endpoint = systemSettings.azure_openai_endpoint || process.env.AZURE_OPENAI_ENDPOINT;
+    // Remove trailing /api if present (common mistake)
+    if (endpoint?.endsWith('/api')) {
+      endpoint = endpoint.slice(0, -4);
+    }
     const deploymentName = systemSettings.azure_openai_deployment_name || process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
     const apiVersion = systemSettings.azure_openai_api_version || process.env.AZURE_OPENAI_API_VERSION;
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
