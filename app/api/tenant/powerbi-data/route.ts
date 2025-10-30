@@ -118,31 +118,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use Export to File API to get actual data
-    // This exports the visual data from the first page
-    const exportUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/ExportTo`;
+    // Get visuals from the first page to extract their data
+    const firstPage = pages[0];
+    const visualsUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages/${firstPage.name}/visuals`;
 
-    const exportResponse = await fetch(exportUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        format: 'JSON',
-        powerBIReportConfiguration: {
-          pages: [
-            {
-              pageName: pages[0].name
-            }
-          ]
-        }
-      })
+    const visualsResponse = await fetch(visualsUrl, {
+      headers: { 'Authorization': `Bearer ${access_token}` },
     });
 
-    if (!exportResponse.ok) {
-      const errorText = await exportResponse.text();
-      console.error('PowerBI export failed:', errorText);
+    if (!visualsResponse.ok) {
+      const errorText = await visualsResponse.text();
+      console.error('PowerBI visuals fetch failed:', errorText);
 
       // Return page info as fallback
       return NextResponse.json({
@@ -150,62 +136,61 @@ export async function GET(request: NextRequest) {
         reportName: templateReport.name,
         roleName: role.display_name,
         pages: pages.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-        note: 'Data export not available. Using page metadata only.',
-        exportError: errorText
+        note: 'Visual data not available. Using page metadata only.',
+        visualsError: errorText
       });
     }
 
-    const exportData = await exportResponse.json();
-    const exportId = exportData.id;
+    const visualsData = await visualsResponse.json();
+    const visuals = visualsData.value || [];
 
-    // Poll for export completion (wait up to 30 seconds)
-    let exportFile = null;
-    for (let i = 0; i < 30; i++) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Try to export data from each visual
+    const visualDataPromises = visuals.slice(0, 5).map(async (visual: any) => {
+      try {
+        const exportDataUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages/${firstPage.name}/visuals/${visual.name}/exportData`;
 
-      const statusUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/exports/${exportId}`;
-      const statusResponse = await fetch(statusUrl, {
-        headers: { 'Authorization': `Bearer ${access_token}` },
-      });
+        const exportResponse = await fetch(exportDataUrl, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${access_token}` },
+        });
 
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-
-        if (statusData.status === 'Succeeded') {
-          // Get the exported file
-          const fileUrl = `${statusUrl}/file`;
-          const fileResponse = await fetch(fileUrl, {
-            headers: { 'Authorization': `Bearer ${access_token}` },
-          });
-
-          if (fileResponse.ok) {
-            exportFile = await fileResponse.json();
-            break;
-          }
-        } else if (statusData.status === 'Failed') {
-          console.error('Export failed:', statusData);
-          break;
+        if (exportResponse.ok) {
+          const data = await exportResponse.text(); // Returns CSV format
+          return {
+            visualName: visual.name,
+            visualTitle: visual.title,
+            data: data,
+            type: visual.type
+          };
         }
+        return null;
+      } catch (error) {
+        console.error(`Failed to export visual ${visual.name}:`, error);
+        return null;
       }
-    }
+    });
 
-    if (exportFile) {
+    const visualsWithData = (await Promise.all(visualDataPromises)).filter(v => v !== null);
+
+    if (visualsWithData.length > 0) {
       return NextResponse.json({
-        source: 'powerbi_export',
+        source: 'powerbi_visuals',
         reportName: templateReport.name,
         roleName: role.display_name,
-        data: exportFile,
+        pageName: firstPage.displayName,
+        visuals: visualsWithData,
         timestamp: new Date().toISOString(),
       });
     }
 
-    // If export didn't complete, return page info
+    // If no visual data available, return page info
     return NextResponse.json({
       source: 'pages_metadata',
       reportName: templateReport.name,
       roleName: role.display_name,
       pages: pages.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-      note: 'Export timeout. Using page metadata only.'
+      visualCount: visuals.length,
+      note: 'Visual data export not available. Using page metadata only.'
     });
 
   } catch (error: any) {
