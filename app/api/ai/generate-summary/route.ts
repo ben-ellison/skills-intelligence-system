@@ -166,10 +166,14 @@ export async function POST(request: NextRequest) {
       summaryId: savedSummary.id,
       createdAt: savedSummary.created_at,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in generate-summary API:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: error?.message || String(error),
+        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     );
   }

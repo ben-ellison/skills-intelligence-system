@@ -210,15 +210,17 @@ function AISummaryTab() {
 
       if (!summaryResponse.ok) {
         const errorData = await summaryResponse.json();
+        console.error('Summary API error:', errorData);
         throw new Error(errorData.error || 'Failed to generate summary');
       }
 
       const result = await summaryResponse.json();
+      console.log('Summary generated successfully:', result);
       setSummary(result.summary);
       setLastGenerated(new Date().toLocaleString());
     } catch (err: any) {
-      setError(err.message || 'An error occurred while generating the summary');
       console.error('Error generating summary:', err);
+      setError(err.message || 'An error occurred while generating the summary');
     } finally {
       setLoading(false);
     }
