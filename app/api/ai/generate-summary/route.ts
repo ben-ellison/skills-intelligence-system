@@ -37,13 +37,24 @@ export async function POST(request: NextRequest) {
 
         if (powerBIResponse.ok) {
           prioritiesData = await powerBIResponse.json();
-          console.log('PowerBI data fetched successfully:', {
+          console.log('[Generate Summary] PowerBI data fetched successfully:', {
             source: prioritiesData.source,
             visualCount: prioritiesData.visuals?.length || 0,
+            reportName: prioritiesData.reportName,
+            selectedPages: prioritiesData.selectedPages
           });
+          // Log a sample of the data
+          if (prioritiesData.visuals && prioritiesData.visuals.length > 0) {
+            console.log('[Generate Summary] First visual sample:', {
+              title: prioritiesData.visuals[0].visualTitle,
+              type: prioritiesData.visuals[0].type,
+              dataLength: prioritiesData.visuals[0].data?.length || 0,
+              dataPreview: prioritiesData.visuals[0].data?.substring(0, 200)
+            });
+          }
         } else {
           const errorText = await powerBIResponse.text();
-          console.error('PowerBI data fetch failed:', powerBIResponse.status, errorText);
+          console.error('[Generate Summary] PowerBI data fetch failed:', powerBIResponse.status, errorText);
           prioritiesData = {
             note: 'PowerBI data export not available. Using report metadata.',
             error: errorText,

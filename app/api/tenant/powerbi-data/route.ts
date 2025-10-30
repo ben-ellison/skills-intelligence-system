@@ -7,12 +7,15 @@ import { createAdminClient } from '@/lib/supabase/server';
 // Export data from PowerBI report based on AI prompt configuration
 export async function GET(request: NextRequest) {
   try {
+    console.log('[PowerBI Data] Starting request');
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user?.email) {
+      console.log('[PowerBI Data] No session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('[PowerBI Data] User email:', session.user.email);
     const supabase = createAdminClient();
 
     // Get user info
@@ -22,7 +25,14 @@ export async function GET(request: NextRequest) {
       .eq('email', session.user.email)
       .single();
 
+    console.log('[PowerBI Data] User found:', {
+      userId: user?.id,
+      orgId: user?.organization_id,
+      roleId: user?.primary_role_id
+    });
+
     if (!user?.primary_role_id) {
+      console.log('[PowerBI Data] No role assigned');
       return NextResponse.json({ error: 'No role assigned' }, { status: 404 });
     }
 
@@ -42,7 +52,15 @@ export async function GET(request: NextRequest) {
       .eq('prompt_type', 'daily_summary')
       .maybeSingle();
 
+    console.log('[PowerBI Data] AI Prompt config:', {
+      hasPrompt: !!aiPrompt,
+      reportId: aiPrompt?.powerbi_report_id,
+      pageNames: aiPrompt?.powerbi_page_names,
+      reportName: (aiPrompt?.powerbi_reports as any)?.name
+    });
+
     if (!aiPrompt || !aiPrompt.powerbi_report_id) {
+      console.log('[PowerBI Data] No PowerBI report configured');
       return NextResponse.json(
         { error: 'No PowerBI report configured for AI analysis' },
         { status: 404 }
@@ -51,6 +69,7 @@ export async function GET(request: NextRequest) {
 
     const templateReportId = aiPrompt.powerbi_report_id;
     const selectedPageNames = aiPrompt.powerbi_page_names || [];
+    console.log('[PowerBI Data] Selected pages:', selectedPageNames);
 
     // Get deployed report for user's organization
     const { data: deployedReport } = await supabase
@@ -61,7 +80,14 @@ export async function GET(request: NextRequest) {
       .eq('deployment_status', 'active')
       .single();
 
+    console.log('[PowerBI Data] Deployed report:', {
+      hasReport: !!deployedReport,
+      reportId: deployedReport?.powerbi_report_id,
+      workspaceId: deployedReport?.powerbi_workspace_id
+    });
+
     if (!deployedReport) {
+      console.log('[PowerBI Data] Report not deployed to organization');
       return NextResponse.json(
         { error: 'Report not deployed to your organization' },
         { status: 404 }
@@ -84,7 +110,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (!tokenResponse.ok) {
-      console.error('Failed to get PowerBI token');
+      const tokenError = await tokenResponse.text();
+      console.error('[PowerBI Data] Failed to get PowerBI token:', tokenError);
       return NextResponse.json(
         { error: 'Failed to authenticate with PowerBI' },
         { status: 500 }
@@ -92,6 +119,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { access_token } = await tokenResponse.json();
+    console.log('[PowerBI Data] Got PowerBI access token');
 
     // Get report pages first
     const pagesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages`;
@@ -111,7 +139,13 @@ export async function GET(request: NextRequest) {
     const pagesData = await pagesResponse.json();
     const allPages = pagesData.value || [];
 
+    console.log('[PowerBI Data] Pages fetched:', {
+      totalPages: allPages.length,
+      pageNames: allPages.map((p: any) => p.name)
+    });
+
     if (!allPages || allPages.length === 0) {
+      console.log('[PowerBI Data] No pages found in report');
       return NextResponse.json(
         { error: 'No pages found in report' },
         { status: 404 }
@@ -123,7 +157,13 @@ export async function GET(request: NextRequest) {
       ? allPages.filter((p: any) => selectedPageNames.includes(p.name))
       : allPages; // If no pages selected, use all pages
 
+    console.log('[PowerBI Data] Pages to process:', {
+      count: pagesToProcess.length,
+      pages: pagesToProcess.map((p: any) => p.displayName || p.name)
+    });
+
     if (pagesToProcess.length === 0) {
+      console.log('[PowerBI Data] Selected pages not found in report');
       return NextResponse.json(
         { error: 'Selected pages not found in report' },
         { status: 404 }
@@ -134,6 +174,7 @@ export async function GET(request: NextRequest) {
     const allVisualsData: any[] = [];
 
     for (const page of pagesToProcess) {
+      console.log(`[PowerBI Data] Processing page: ${page.displayName || page.name}`);
       const visualsUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages/${page.name}/visuals`;
 
       try {
@@ -142,18 +183,21 @@ export async function GET(request: NextRequest) {
         });
 
         if (!visualsResponse.ok) {
-          console.error(`Failed to fetch visuals for page ${page.name}`);
+          const visualsError = await visualsResponse.text();
+          console.error(`[PowerBI Data] Failed to fetch visuals for page ${page.name}:`, visualsError);
           continue;
         }
 
         const visualsData = await visualsResponse.json();
         const visuals = visualsData.value || [];
+        console.log(`[PowerBI Data] Found ${visuals.length} visuals on page ${page.displayName || page.name}`);
 
         // Export data from all visuals on this page
         const visualDataPromises = visuals.map(async (visual: any) => {
           try {
             const exportDataUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages/${page.name}/visuals/${visual.name}/exportData`;
 
+            console.log(`[PowerBI Data] Exporting visual: ${visual.title || visual.name}`);
             const exportResponse = await fetch(exportDataUrl, {
               method: 'GET',
               headers: { 'Authorization': `Bearer ${access_token}` },
@@ -161,6 +205,7 @@ export async function GET(request: NextRequest) {
 
             if (exportResponse.ok) {
               const data = await exportResponse.text(); // Returns CSV format
+              console.log(`[PowerBI Data] Successfully exported visual ${visual.title}, data length: ${data.length} chars`);
               return {
                 pageName: page.name,
                 pageDisplayName: page.displayName,
@@ -169,22 +214,27 @@ export async function GET(request: NextRequest) {
                 data: data,
                 type: visual.type
               };
+            } else {
+              const exportError = await exportResponse.text();
+              console.error(`[PowerBI Data] Failed to export visual ${visual.name}:`, exportResponse.status, exportError);
             }
             return null;
           } catch (error) {
-            console.error(`Failed to export visual ${visual.name} on page ${page.name}:`, error);
+            console.error(`[PowerBI Data] Failed to export visual ${visual.name} on page ${page.name}:`, error);
             return null;
           }
         });
 
         const pageVisualsData = (await Promise.all(visualDataPromises)).filter(v => v !== null);
+        console.log(`[PowerBI Data] Successfully exported ${pageVisualsData.length} visuals from page ${page.displayName || page.name}`);
         allVisualsData.push(...pageVisualsData);
       } catch (error) {
-        console.error(`Error processing page ${page.name}:`, error);
+        console.error(`[PowerBI Data] Error processing page ${page.name}:`, error);
       }
     }
 
     if (allVisualsData.length > 0) {
+      console.log(`[PowerBI Data] SUCCESS: Returning ${allVisualsData.length} visuals from ${pagesToProcess.length} pages`);
       return NextResponse.json({
         source: 'powerbi_visuals',
         reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
@@ -195,6 +245,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If no visual data available, return page info
+    console.log('[PowerBI Data] WARNING: No visual data available, returning metadata only');
     return NextResponse.json({
       source: 'pages_metadata',
       reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
