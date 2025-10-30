@@ -179,13 +179,17 @@ export async function fetchPowerBIVisualData(
       const visuals = visualsData.value || [];
       console.log(`[PowerBI Fetch] Found ${visuals.length} visuals on page ${page.displayName || page.name}`);
 
-      // Export data from all visuals on this page
+      // Try to export data from visuals using Export Visual Data endpoint
       const visualDataPromises = visuals.map(async (visual: any) => {
         try {
+          // PowerBI REST API: Export Visual Data
+          // Docs: https://learn.microsoft.com/en-us/rest/api/power-bi/reports/export-visual-data-in-group
           const exportDataUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/pages/${page.name}/visuals/${visual.name}/exportData`;
 
-          console.log(`[PowerBI Fetch] Exporting visual: ${visual.title || visual.name}`);
-          const exportResponse = await fetch(exportDataUrl, {
+          console.log(`[PowerBI Fetch] Attempting to export visual: ${visual.title || visual.name} (type: ${visual.type})`);
+
+          // Try POST first (documented way)
+          let exportResponse = await fetch(exportDataUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${access_token}`,
@@ -196,9 +200,20 @@ export async function fetchPowerBIVisualData(
             })
           });
 
+          // If POST fails, try GET (some APIs use GET)
+          if (!exportResponse.ok && exportResponse.status === 404) {
+            console.log(`[PowerBI Fetch] POST failed with 404, trying GET for ${visual.name}`);
+            exportResponse = await fetch(exportDataUrl, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${access_token}`
+              }
+            });
+          }
+
           if (exportResponse.ok) {
             const data = await exportResponse.text();
-            console.log(`[PowerBI Fetch] Successfully exported visual ${visual.title}, data length: ${data.length} chars`);
+            console.log(`[PowerBI Fetch] ✓ Successfully exported visual "${visual.title}", data length: ${data.length} chars`);
             return {
               pageName: page.name,
               pageDisplayName: page.displayName,
@@ -209,11 +224,15 @@ export async function fetchPowerBIVisualData(
             };
           } else {
             const exportError = await exportResponse.text();
-            console.error(`[PowerBI Fetch] Failed to export visual ${visual.name}:`, exportResponse.status, exportError);
+            console.error(`[PowerBI Fetch] ✗ Failed to export visual "${visual.title}" (${visual.name}):`, {
+              status: exportResponse.status,
+              statusText: exportResponse.statusText,
+              error: exportError.substring(0, 500)
+            });
           }
           return null;
         } catch (error) {
-          console.error(`[PowerBI Fetch] Failed to export visual ${visual.name} on page ${page.name}:`, error);
+          console.error(`[PowerBI Fetch] Exception exporting visual ${visual.name}:`, error);
           return null;
         }
       });
