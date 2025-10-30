@@ -13,6 +13,8 @@ export async function GET() {
 
     const supabase = createAdminClient();
 
+    console.log('Looking up user with auth0_user_id:', session.user.sub);
+
     // Fetch user data
     const { data: userData, error } = await supabase
       .from('users')
@@ -21,7 +23,21 @@ export async function GET() {
       .single();
 
     if (error || !userData) {
-      console.error('Error fetching user data:', error);
+      console.error('Error fetching user data. Auth0 ID:', session.user.sub, 'Error:', error);
+
+      // Try to find by email as fallback for debugging
+      const { data: userByEmail } = await supabase
+        .from('users')
+        .select('email, auth0_user_id')
+        .eq('email', session.user.email)
+        .single();
+
+      if (userByEmail) {
+        console.error('User exists by email but auth0_user_id mismatch!');
+        console.error('Session auth0_user_id:', session.user.sub);
+        console.error('Database auth0_user_id:', userByEmail.auth0_user_id);
+      }
+
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
