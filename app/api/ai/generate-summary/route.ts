@@ -254,6 +254,11 @@ export async function POST(request: NextRequest) {
       tokensUsed,
       summaryId: savedSummary.id,
       createdAt: savedSummary.created_at,
+      debug: {
+        dataSource: prioritiesData?.source || 'unknown',
+        visualCount: prioritiesData?.visuals?.length || 0,
+        debugInfo: prioritiesData?.debug
+      }
     });
   } catch (error: any) {
     console.error('Error in generate-summary API:', error);

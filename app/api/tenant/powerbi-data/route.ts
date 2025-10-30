@@ -241,16 +241,25 @@ export async function GET(request: NextRequest) {
         selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
         visuals: allVisualsData,
         timestamp: new Date().toISOString(),
+        debug: {
+          pagesProcessed: pagesToProcess.length,
+          visualsExported: allVisualsData.length
+        }
       });
     }
 
-    // If no visual data available, return page info
+    // If no visual data available, return page info WITH DEBUG INFO
     console.log('[PowerBI Data] WARNING: No visual data available, returning metadata only');
     return NextResponse.json({
       source: 'pages_metadata',
       reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
       pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-      note: 'Visual data export not available. Using page metadata only.'
+      note: 'Visual data export not available. Using page metadata only.',
+      debug: {
+        pagesAttempted: pagesToProcess.length,
+        visualsFound: pagesToProcess.reduce((sum: number, p: any) => sum + (p._visualCount || 0), 0),
+        message: 'All visual export attempts failed - check Vercel logs for PowerBI API errors'
+      }
     });
 
   } catch (error: any) {
