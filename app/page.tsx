@@ -12,7 +12,13 @@ function getSubdomain(hostname: string): string | null {
   const parts = hostWithoutPort.split('.');
   if (parts.length < 3) return null;
 
-  return parts[0];
+  // Ignore 'www' as it's not a tenant subdomain
+  const subdomain = parts[0];
+  if (subdomain === 'www') {
+    return null;
+  }
+
+  return subdomain;
 }
 
 export default async function LandingPage() {

@@ -141,6 +141,7 @@ export async function middleware(request: NextRequest) {
  * - demo1.aivii.co.uk → demo1
  * - admin.aivii.co.uk → admin
  * - aivii.co.uk → null
+ * - www.aivii.co.uk → null (www is not a tenant subdomain)
  * - localhost:3000 → null
  */
 function getSubdomain(hostname: string): string | null {
@@ -159,8 +160,13 @@ function getSubdomain(hostname: string): string | null {
     return null;
   }
 
-  // First part is the subdomain
-  return parts[0];
+  // First part is the subdomain - but ignore 'www' as it's not a tenant
+  const subdomain = parts[0];
+  if (subdomain === 'www') {
+    return null;
+  }
+
+  return subdomain;
 }
 
 export const config = {
