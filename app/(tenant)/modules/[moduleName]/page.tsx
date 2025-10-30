@@ -94,7 +94,7 @@ export default function ModulePage({
     <div className="h-full flex flex-col">
       {/* Module Tabs (configured in Super Admin) */}
       {tabs.length > 1 && (
-        <div className="bg-[#033c3a]">
+        <div className="bg-[#e6ffff] border-b border-[#0eafaa]">
           <div className="px-6 py-3">
             <div className="inline-flex bg-[#00e5c0] rounded-lg p-1">
               {tabs.map((tab) => (
