@@ -31,7 +31,7 @@ export async function extractPowerBIDataWithPuppeteer(
 <html>
 <head>
     <meta charset="UTF-8">
-    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.js"></script>
     <style>
         body { margin: 0; padding: 0; }
         #reportContainer { width: 100%; height: 100vh; }
@@ -44,14 +44,18 @@ export async function extractPowerBIDataWithPuppeteer(
         window.extractedData = null;
         window.extractionError = null;
 
-        (async function() {
+        // Wait for PowerBI library to load
+        window.addEventListener('load', async function() {
             try {
+                console.log('Page loaded, initializing PowerBI...');
+
+                // Check if powerbi-client is available
+                if (typeof window.powerbi === 'undefined') {
+                    throw new Error('PowerBI client library not loaded');
+                }
+
+                const powerbi = window.powerbi;
                 const models = window['powerbi-client'].models;
-                const powerbi = new window['powerbi-client'].service.Service(
-                    models.factories.hpmFactory,
-                    models.factories.wpmpFactory,
-                    models.factories.routerFactory
-                );
 
                 const config = {
                     type: 'report',
@@ -70,7 +74,7 @@ export async function extractPowerBIDataWithPuppeteer(
                     }
                 };
 
-                console.log('Embedding report with config:', config);
+                console.log('Embedding report...');
                 const reportContainer = document.getElementById('reportContainer');
                 const report = powerbi.embed(reportContainer, config);
 
@@ -140,7 +144,7 @@ export async function extractPowerBIDataWithPuppeteer(
                 window.extractionError = error.message;
                 window.extractionComplete = true;
             }
-        })();
+        });
     </script>
 </body>
 </html>`;
