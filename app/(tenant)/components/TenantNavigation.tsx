@@ -161,28 +161,12 @@ export default function TenantNavigation({
         {/* Logo/Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[#0eafaa]">
           {sidebarOpen ? (
-            <Link href="/modules" className="flex items-center">
-              {organizationLogo ? (
-                <img
-                  src={organizationLogo}
-                  alt={organizationName}
-                  className="h-10 w-auto max-w-[180px] object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-[#033c3a]">Skills Intelligence System</span>
-              )}
+            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
+              Skills Intelligence System
             </Link>
           ) : (
-            <Link href="/modules" className="flex items-center justify-center">
-              {organizationLogo ? (
-                <img
-                  src={organizationLogo}
-                  alt={organizationName}
-                  className="h-8 w-auto object-contain"
-                />
-              ) : (
-                <span className="text-lg font-bold text-[#033c3a]">SIS</span>
-              )}
+            <Link href="/modules" className="text-lg font-bold text-[#033c3a]">
+              SIS
             </Link>
           )}
           <button
