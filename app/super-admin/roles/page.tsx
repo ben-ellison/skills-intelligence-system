@@ -34,10 +34,19 @@ export default async function GlobalRolesPage() {
   // Fetch all module tabs (global tabs only)
   const { data: tabs } = await supabase
     .from('module_tabs')
-    .select('*, global_modules!inner(display_name)')
+    .select('*')
     .eq('is_active', true)
     .order('module_name', { ascending: true })
     .order('sort_order', { ascending: true });
+
+  // Enrich tabs with module display names
+  const enrichedTabs = tabs?.map(tab => {
+    const module = modules?.find(m => m.name === tab.module_name);
+    return {
+      ...tab,
+      global_modules: module ? { display_name: module.display_name } : null
+    };
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
@@ -45,7 +54,7 @@ export default async function GlobalRolesPage() {
         <GlobalRolesPageWrapper
           initialRoles={roles || []}
           globalModules={modules || []}
-          moduleTabs={tabs || []}
+          moduleTabs={enrichedTabs || []}
         />
       </div>
     </div>
