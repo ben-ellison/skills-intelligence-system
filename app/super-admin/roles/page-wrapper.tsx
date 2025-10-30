@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings, List } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings, List, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 interface GlobalRole {
   id: string;
@@ -348,6 +349,14 @@ export default function GlobalRolesPageWrapper({ initialRoles, globalModules, mo
 
   return (
     <div>
+      <Link
+        href="/super-admin"
+        className="inline-flex items-center text-sm text-slate-600 hover:text-[#033c3a] mb-4 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Super Admin Dashboard
+      </Link>
+
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-[#033c3a]">Global Roles</h2>
