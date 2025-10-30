@@ -186,15 +186,38 @@ export async function fetchPowerBIVisualData(
   // Try to get dataset schema and query tables
   console.log('[PowerBI Fetch] Fetching dataset schema');
 
+  const debugInfo: any = {
+    step: 'starting',
+    datasetId,
+    workspaceId: deployedReport.powerbi_workspace_id
+  };
+
   try {
     // Get dataset schema to discover tables
     const datasetUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}`;
+    debugInfo.step = 'fetching_dataset';
+    debugInfo.datasetUrl = datasetUrl;
+
     const datasetResponse = await fetch(datasetUrl, {
       headers: { 'Authorization': `Bearer ${access_token}` }
     });
 
+    debugInfo.step = 'dataset_response_received';
+    debugInfo.datasetResponseStatus = datasetResponse.status;
+
+    if (!datasetResponse.ok) {
+      const errorText = await datasetResponse.text();
+      debugInfo.step = 'dataset_fetch_failed';
+      debugInfo.error = errorText;
+      console.error('[PowerBI Fetch] Dataset fetch failed:', errorText);
+      throw new Error(`Dataset fetch failed: ${datasetResponse.status} - ${errorText}`);
+    }
+
     if (datasetResponse.ok) {
       const datasetInfo = await datasetResponse.json();
+      debugInfo.step = 'dataset_info_retrieved';
+      debugInfo.datasetName = datasetInfo.name;
+
       console.log('[PowerBI Fetch] Dataset info retrieved:', {
         name: datasetInfo.name,
         hasSchema: !!datasetInfo.tables
@@ -282,8 +305,12 @@ export async function fetchPowerBIVisualData(
     }
 
     console.log('[PowerBI Fetch] Dataset query approach failed, falling back to metadata');
+    debugInfo.step = 'query_approach_failed';
   } catch (queryError: any) {
     console.error('[PowerBI Fetch] Dataset query error:', queryError.message);
+    debugInfo.step = 'caught_error';
+    debugInfo.catchError = queryError.message;
+    debugInfo.errorStack = queryError.stack;
   }
 
   // Fallback to metadata only
@@ -295,7 +322,8 @@ export async function fetchPowerBIVisualData(
     note: 'Data extraction not available. Using page metadata only.',
     debug: {
       pagesAttempted: pagesToProcess.length,
-      extractionError: 'Dataset query failed'
+      extractionError: 'Dataset query failed',
+      detailedDebug: debugInfo
     }
   };
 
