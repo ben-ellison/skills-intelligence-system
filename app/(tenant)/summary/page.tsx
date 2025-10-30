@@ -147,56 +147,150 @@ function PowerBIReportTab({ loading, priorityData }: { loading: boolean; priorit
 }
 
 function AISummaryTab() {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+
+  const handleGenerateSummary = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // First, fetch the current priority report data
+      const priorityResponse = await fetch('/api/tenant/priority-report');
+      const priorityData = await priorityResponse.json();
+
+      if (!priorityData.hasRole || !priorityData.hasPriorityReport) {
+        setError('Cannot generate summary: No priority report available for your role');
+        setLoading(false);
+        return;
+      }
+
+      // Get user's role ID
+      const userResponse = await fetch('/api/tenant/user-info');
+      const userData = await userResponse.json();
+
+      if (!userData.roleId) {
+        setError('Cannot generate summary: No role assigned');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch the actual PowerBI report data (simplified version for AI)
+      // For now, we'll use the priority report metadata as the data
+      const simplifiedData = {
+        roleName: priorityData.roleName,
+        reportName: priorityData.report?.name,
+        timestamp: new Date().toISOString(),
+        // In production, you would fetch actual report data from PowerBI API
+        // For now, we'll use placeholder data
+        note: 'This is using placeholder data. In production, this would contain actual PowerBI report data.'
+      };
+
+      // Call the AI summary generation API
+      const summaryResponse = await fetch('/api/ai/generate-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roleId: userData.roleId,
+          prioritiesData: simplifiedData,
+        }),
+      });
+
+      if (!summaryResponse.ok) {
+        const errorData = await summaryResponse.json();
+        throw new Error(errorData.error || 'Failed to generate summary');
+      }
+
+      const result = await summaryResponse.json();
+      setSummary(result.summary);
+      setLastGenerated(new Date().toLocaleString());
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while generating the summary');
+      console.error('Error generating summary:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">
-          AiVII Summary
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">
+              AiVII Summary
+            </h2>
+            {lastGenerated && (
+              <p className="text-sm text-slate-500 mt-1">
+                Last generated: {lastGenerated}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={handleGenerateSummary}
+            disabled={loading}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              loading
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-[#00e5c0] text-[#033c3a] hover:bg-[#0eafaa]'
+            }`}
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#033c3a]"></div>
+                Generating...
+              </span>
+            ) : (
+              'Generate AI Summary'
+            )}
+          </button>
+        </div>
 
-        <div className="space-y-6">
-          {/* Placeholder content */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-amber-900 mb-2">
-              🚧 AI Summary Coming Soon
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-red-900 mb-2">Error</h3>
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {!summary && !error && !loading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+            <svg
+              className="w-16 h-16 text-blue-400 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
+            </svg>
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">
+              Generate Your AI Summary
             </h3>
-            <p className="text-amber-800">
-              This tab will display AI-generated summaries and priorities based on your
-              organization's data across all modules.
+            <p className="text-blue-800 mb-4">
+              Click the button above to generate an AI-powered summary of your immediate priorities.
+              The AI will analyze your data and provide actionable insights tailored to your role.
             </p>
           </div>
+        )}
 
-          {/* Placeholder sections for what will be shown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-slate-200 rounded-lg p-4">
-              <h4 className="font-semibold text-slate-900 mb-2">Key Insights</h4>
-              <p className="text-sm text-slate-600">
-                AI-generated insights from your data will appear here
-              </p>
-            </div>
-
-            <div className="border border-slate-200 rounded-lg p-4">
-              <h4 className="font-semibold text-slate-900 mb-2">Top Priorities</h4>
-              <p className="text-sm text-slate-600">
-                Prioritized action items based on AI analysis
-              </p>
-            </div>
-
-            <div className="border border-slate-200 rounded-lg p-4">
-              <h4 className="font-semibold text-slate-900 mb-2">Trends & Patterns</h4>
-              <p className="text-sm text-slate-600">
-                Identified trends across your modules
-              </p>
-            </div>
-
-            <div className="border border-slate-200 rounded-lg p-4">
-              <h4 className="font-semibold text-slate-900 mb-2">Recommendations</h4>
-              <p className="text-sm text-slate-600">
-                AI-powered recommendations for improvement
-              </p>
+        {summary && (
+          <div className="prose prose-slate max-w-none">
+            <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
+              <div className="whitespace-pre-wrap text-slate-800" style={{ lineHeight: '1.8' }}>
+                {summary}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
