@@ -171,6 +171,14 @@ function AISummaryTab() {
       const userResponse = await fetch('/api/tenant/user-info');
       const userData = await userResponse.json();
 
+      console.log('User data response:', userData);
+
+      if (!userResponse.ok) {
+        setError(`Cannot generate summary: ${userData.error || 'Failed to fetch user info'}`);
+        setLoading(false);
+        return;
+      }
+
       if (!userData.roleId) {
         setError('Cannot generate summary: No role assigned');
         setLoading(false);
