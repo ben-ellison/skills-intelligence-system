@@ -55,17 +55,21 @@ export async function POST(request: NextRequest) {
         } else {
           const errorText = await powerBIResponse.text();
           console.error('[Generate Summary] PowerBI data fetch failed:', powerBIResponse.status, errorText);
-          prioritiesData = {
-            note: 'PowerBI data export not available. Using report metadata.',
-            error: errorText,
-          };
+          // Return error to client so we can see what's wrong
+          return NextResponse.json({
+            error: `PowerBI data fetch failed: ${powerBIResponse.status}`,
+            details: errorText,
+            url: powerBIDataUrl.toString()
+          }, { status: 500 });
         }
       } catch (error) {
         console.error('Error fetching PowerBI data:', error);
-        prioritiesData = {
-          note: 'Failed to fetch PowerBI data. Using placeholder.',
-          error: String(error),
-        };
+        // Return error to client so we can see what's wrong
+        return NextResponse.json({
+          error: 'Exception while fetching PowerBI data',
+          details: String(error),
+          message: (error as Error).message
+        }, { status: 500 });
       }
     } else if (body.prioritiesData) {
       prioritiesData = body.prioritiesData;
