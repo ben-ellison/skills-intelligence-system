@@ -193,7 +193,7 @@ export default function TenantNavigation({
                 href="/summary"
                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   pathname === '/summary'
-                    ? 'bg-white text-[#033c3a] shadow-sm'
+                    ? 'bg-[#00e5c0] text-[#033c3a] shadow-sm'
                     : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                 }`}
               >
@@ -229,7 +229,7 @@ export default function TenantNavigation({
                               href={`/modules/${module.name}`}
                               className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                                 isActive
-                                  ? 'bg-white text-[#033c3a] shadow-sm'
+                                  ? 'bg-[#00e5c0] text-[#033c3a] shadow-sm'
                                   : 'text-[#033c3a] hover:bg-[#00f9e3]/20'
                               }`}
                               title={sidebarOpen ? undefined : module.display_name}
@@ -283,7 +283,7 @@ export default function TenantNavigation({
               <img
                 src={organizationLogo}
                 alt={organizationName}
-                className="h-8 w-auto max-w-[200px] object-contain"
+                className="h-8 w-auto max-w-[200px] object-contain bg-[#033c3a] px-3 py-1 rounded"
               />
             ) : (
               <h1 className="text-xl font-semibold text-slate-900">
