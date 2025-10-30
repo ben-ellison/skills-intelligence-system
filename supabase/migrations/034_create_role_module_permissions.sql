@@ -126,7 +126,7 @@ BEGIN
     gm.sort_order as module_sort_order
   FROM global_modules gm
   INNER JOIN global_role_module_permissions grmp ON gm.id = grmp.module_id
-  INNER JOIN user_roles ur ON grmp.role_id = ur.role_id
+  INNER JOIN user_roles ur ON grmp.role_id = ur.global_role_id
   WHERE ur.user_id = p_user_id
     AND gm.is_active = true
   ORDER BY gm.sort_order;

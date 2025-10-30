@@ -118,7 +118,7 @@ BEGIN
     mt.sort_order
   FROM module_tabs mt
   INNER JOIN global_role_tab_permissions grtp ON mt.id = grtp.tab_id
-  INNER JOIN user_roles ur ON grtp.role_id = ur.role_id
+  INNER JOIN user_roles ur ON grtp.role_id = ur.global_role_id
   WHERE ur.user_id = p_user_id
     AND mt.module_name = p_module_name
     AND mt.is_active = true

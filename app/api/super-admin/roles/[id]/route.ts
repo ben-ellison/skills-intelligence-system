@@ -96,7 +96,7 @@ export async function DELETE(
     const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
       .select('id')
-      .eq('role_id', params.id)
+      .eq('global_role_id', params.id)
       .limit(1);
 
     if (userRolesError) {
