@@ -36,17 +36,32 @@ export default async function AISettingsPage() {
     .order('role_level', { ascending: true })
     .order('sort_order', { ascending: true });
 
-  // Fetch all AI prompts
+  // Fetch all AI prompts with their PowerBI report info
   const { data: prompts } = await supabase
     .from('ai_prompts')
-    .select('*')
+    .select(`
+      *,
+      powerbi_reports:powerbi_report_id (
+        id,
+        name,
+        description
+      )
+    `)
     .order('created_at', { ascending: false });
+
+  // Fetch all PowerBI template reports
+  const { data: powerbiReports } = await supabase
+    .from('powerbi_reports')
+    .select('id, name, description, is_active')
+    .eq('is_active', true)
+    .order('name', { ascending: true });
 
   return (
     <AISettingsPageWrapper
       systemSettings={systemSettings}
       roles={roles || []}
       prompts={prompts || []}
+      powerbiReports={powerbiReports || []}
     />
   );
 }
