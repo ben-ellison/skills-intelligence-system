@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
         try {
           const { data: user } = await supabase
             .from('users')
-            .select('id, email, organization_id, is_super_admin, is_tenant_admin, role_id')
+            .select('id, email, organization_id, is_super_admin, is_tenant_admin, primary_role_id')
             .eq('auth0_user_id', token.sub)
             .single();
 
@@ -71,7 +71,7 @@ export const authOptions: NextAuthOptions = {
             session.user.organizationId = user.organization_id;
             session.user.isSuperAdmin = user.is_super_admin;
             session.user.isTenantAdmin = user.is_tenant_admin;
-            session.user.roleId = user.role_id;
+            session.user.roleId = user.primary_role_id;
             session.user.role = user.is_super_admin ? 'super-admin' : (user.is_tenant_admin ? 'tenant-admin' : 'user');
 
             // Update last_login_at timestamp (fire and forget)
