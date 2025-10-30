@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown, Eye, EyeOff, Settings } from 'lucide-react';
 
 interface GlobalRole {
   id: string;
@@ -15,11 +15,22 @@ interface GlobalRole {
   updated_at: string;
 }
 
-interface GlobalRolesPageWrapperProps {
-  initialRoles: GlobalRole[];
+interface GlobalModule {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  icon_name: string | null;
+  sort_order: number;
+  is_active: boolean;
 }
 
-export default function GlobalRolesPageWrapper({ initialRoles }: GlobalRolesPageWrapperProps) {
+interface GlobalRolesPageWrapperProps {
+  initialRoles: GlobalRole[];
+  globalModules: GlobalModule[];
+}
+
+export default function GlobalRolesPageWrapper({ initialRoles, globalModules }: GlobalRolesPageWrapperProps) {
   const [roles, setRoles] = useState<GlobalRole[]>(initialRoles);
   const [loading, setLoading] = useState(false);
   const [editingRole, setEditingRole] = useState<GlobalRole | null>(null);
@@ -32,6 +43,11 @@ export default function GlobalRolesPageWrapper({ initialRoles }: GlobalRolesPage
     sort_order: 0,
     is_active: true,
   });
+
+  // Module permissions state
+  const [permissionsRole, setPermissionsRole] = useState<GlobalRole | null>(null);
+  const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(false);
 
   const fetchRoles = async () => {
     try {
@@ -179,6 +195,65 @@ export default function GlobalRolesPageWrapper({ initialRoles }: GlobalRolesPage
       console.error('Error reordering roles:', error);
       alert('Failed to reorder roles');
     }
+  };
+
+  const handleManagePermissions = async (role: GlobalRole) => {
+    setPermissionsRole(role);
+    setLoadingPermissions(true);
+
+    try {
+      const response = await fetch(`/api/super-admin/roles/${role.id}/modules`);
+      if (!response.ok) {
+        throw new Error('Failed to load module permissions');
+      }
+
+      const data = await response.json();
+      setSelectedModuleIds(data.moduleIds || []);
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+      alert('Failed to load module permissions');
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsRole) return;
+
+    try {
+      setLoadingPermissions(true);
+      const response = await fetch(`/api/super-admin/roles/${permissionsRole.id}/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moduleIds: selectedModuleIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save permissions');
+      }
+
+      alert('Module permissions updated successfully');
+      setPermissionsRole(null);
+      setSelectedModuleIds([]);
+    } catch (error: any) {
+      console.error('Error saving permissions:', error);
+      alert(error.message);
+    } finally {
+      setLoadingPermissions(false);
+    }
+  };
+
+  const handleToggleModule = (moduleId: string) => {
+    setSelectedModuleIds(prev =>
+      prev.includes(moduleId)
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId]
+    );
+  };
+
+  const handleClosePermissions = () => {
+    setPermissionsRole(null);
+    setSelectedModuleIds([]);
   };
 
   if (loading) {
@@ -405,6 +480,13 @@ export default function GlobalRolesPageWrapper({ initialRoles }: GlobalRolesPage
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
+                      onClick={() => handleManagePermissions(role)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      title="Manage module permissions"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(role)}
                       className="text-[#00e5c0] hover:text-[#0eafaa] mr-3"
                       title="Edit role"
@@ -428,10 +510,79 @@ export default function GlobalRolesPageWrapper({ initialRoles }: GlobalRolesPage
 
       <div className="mt-4 text-sm text-slate-600">
         <p>
-          <strong>Note:</strong> Roles are global and shared across all organizations. They define what permissions 
+          <strong>Note:</strong> Roles are global and shared across all organizations. They define what permissions
           users have when assigned to them. Roles cannot be deleted if they are currently assigned to any users.
         </p>
       </div>
+
+      {/* Module Permissions Modal */}
+      {permissionsRole && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4">
+              <h3 className="text-xl font-bold text-slate-900">
+                Module Permissions for {permissionsRole.display_name}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Select which modules this role can access
+              </p>
+            </div>
+
+            <div className="p-6">
+              {loadingPermissions ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00e5c0] mx-auto"></div>
+                    <p className="mt-2 text-slate-600">Loading permissions...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {globalModules.map((module) => (
+                    <label
+                      key={module.id}
+                      className="flex items-center p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedModuleIds.includes(module.id)}
+                        onChange={() => handleToggleModule(module.id)}
+                        className="h-5 w-5 text-[#00e5c0] focus:ring-[#00e5c0] border-slate-300 rounded"
+                      />
+                      <div className="ml-4 flex-1">
+                        <div className="font-medium text-slate-900">{module.display_name}</div>
+                        {module.description && (
+                          <div className="text-sm text-slate-600 mt-1">{module.description}</div>
+                        )}
+                        <div className="text-xs text-slate-500 mt-1 font-mono">{module.name}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3">
+              <button
+                onClick={handleSavePermissions}
+                disabled={loadingPermissions}
+                className="flex items-center px-4 py-2 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Permissions
+              </button>
+              <button
+                onClick={handleClosePermissions}
+                disabled={loadingPermissions}
+                className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

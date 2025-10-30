@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get user's organization
+    // Get user's organization and ID
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('organization_id')
+      .select('id, organization_id')
       .eq('email', session.user.email)
       .single();
 
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use the helper function to get effective modules
-    const { data: modules, error: modulesError } = await supabase
+    // Get all organization modules
+    const { data: orgModules, error: modulesError } = await supabase
       .rpc('get_modules_for_organization', {
         p_organization_id: user.organization_id,
       });
@@ -43,7 +43,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(modules || []);
+    // Get user's accessible modules based on role permissions
+    const { data: accessibleModules, error: permissionsError } = await supabase
+      .rpc('get_accessible_modules_for_user', {
+        p_user_id: user.id,
+      });
+
+    if (permissionsError) {
+      console.error('Error fetching accessible modules:', permissionsError);
+      // If error getting permissions, fall back to showing all org modules
+      return NextResponse.json(orgModules || []);
+    }
+
+    // If user has no role permissions, return empty array
+    if (!accessibleModules || accessibleModules.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    // Filter organization modules to only those the user has access to
+    const accessibleModuleNames = new Set(
+      accessibleModules.map((m: any) => m.module_name)
+    );
+
+    const filteredModules = (orgModules || []).filter((module: any) =>
+      accessibleModuleNames.has(module.name)
+    );
+
+    return NextResponse.json(filteredModules);
   } catch (error) {
     console.error('Error in GET modules:', error);
     return NextResponse.json(
