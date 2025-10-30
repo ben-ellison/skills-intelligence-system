@@ -225,13 +225,31 @@ export async function fetchPowerBIVisualData(
 
       // Get list of tables from the dataset
       const tablesUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/tables`;
+      debugInfo.step = 'fetching_tables';
+      debugInfo.tablesUrl = tablesUrl;
+
       const tablesResponse = await fetch(tablesUrl, {
         headers: { 'Authorization': `Bearer ${access_token}` }
       });
 
+      debugInfo.step = 'tables_response_received';
+      debugInfo.tablesResponseStatus = tablesResponse.status;
+
+      if (!tablesResponse.ok) {
+        const errorText = await tablesResponse.text();
+        debugInfo.step = 'tables_fetch_failed';
+        debugInfo.tablesError = errorText;
+        console.error('[PowerBI Fetch] Tables fetch failed:', errorText);
+        throw new Error(`Tables fetch failed: ${tablesResponse.status} - ${errorText}`);
+      }
+
       if (tablesResponse.ok) {
         const tablesData = await tablesResponse.json();
         const tables = tablesData.value || [];
+
+        debugInfo.step = 'tables_retrieved';
+        debugInfo.tableCount = tables.length;
+        debugInfo.tableNames = tables.slice(0, 5).map((t: any) => t.name);
 
         console.log('[PowerBI Fetch] Found tables:', {
           count: tables.length,
@@ -245,6 +263,11 @@ export async function fetchPowerBIVisualData(
             query: `EVALUATE TOPN(20, '${table.name}')`
           }));
 
+          debugInfo.step = 'executing_queries';
+          debugInfo.queryUrl = queryUrl;
+          debugInfo.queryCount = tableQueries.length;
+          debugInfo.queriedTables = tableQueries.map((q: any, idx: number) => tables[idx].name);
+
           const queryResponse = await fetch(queryUrl, {
             method: 'POST',
             headers: {
@@ -257,9 +280,24 @@ export async function fetchPowerBIVisualData(
             })
           });
 
+          debugInfo.step = 'query_response_received';
+          debugInfo.queryResponseStatus = queryResponse.status;
+
+          if (!queryResponse.ok) {
+            const errorText = await queryResponse.text();
+            debugInfo.step = 'query_execution_failed';
+            debugInfo.queryError = errorText;
+            console.error('[PowerBI Fetch] Query execution failed:', errorText);
+            throw new Error(`Query execution failed: ${queryResponse.status} - ${errorText}`);
+          }
+
           if (queryResponse.ok) {
             const queryData = await queryResponse.json();
             const results = queryData.results || [];
+
+            debugInfo.step = 'query_results_retrieved';
+            debugInfo.resultCount = results.length;
+            debugInfo.rowsInFirstTable = results[0]?.tables?.[0]?.rows?.length || 0;
 
             console.log('[PowerBI Fetch] Query executed successfully:', {
               tableCount: results.length,
@@ -296,12 +334,20 @@ export async function fetchPowerBIVisualData(
             }
           } else {
             const errorText = await queryResponse.text();
+            debugInfo.step = 'query_response_not_ok';
+            debugInfo.queryResponseError = errorText;
             console.error('[PowerBI Fetch] Query failed:', errorText);
           }
+        } else {
+          debugInfo.step = 'no_tables_found';
+          debugInfo.note = 'Tables list was empty';
         }
       } else {
+        debugInfo.step = 'tables_response_not_ok';
         console.log('[PowerBI Fetch] Could not fetch tables list');
       }
+    } else {
+      debugInfo.step = 'dataset_response_not_ok';
     }
 
     console.log('[PowerBI Fetch] Dataset query approach failed, falling back to metadata');
