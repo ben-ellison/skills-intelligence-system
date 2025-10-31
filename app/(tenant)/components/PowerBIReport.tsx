@@ -272,7 +272,7 @@ export default function PowerBIReport({
           },
           navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
-          persistentFiltersEnabled: true, // Enable PowerBI's built-in filter persistence
+          persistentFiltersEnabled: false, // Disable built-in persistence - we use custom persistence instead
         },
       };
 
