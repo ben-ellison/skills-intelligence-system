@@ -88,7 +88,7 @@ export default async function ModuleTabConfigPage({
     .select('*')
     .eq('organization_id', organizationId);
 
-  // Fetch organization's tab overrides
+  // Fetch organization's tab overrides (including hidden tabs)
   const { data: orgTabs } = await supabase
     .from('tenant_module_tabs')
     .select(`
@@ -102,8 +102,9 @@ export default async function ModuleTabConfigPage({
       organization_report_id,
       is_active
     `)
-    .eq('organization_id', organizationId)
-    .eq('is_active', true);
+    .eq('organization_id', organizationId);
+    // NOTE: Don't filter by is_active here - we need to include hidden tabs
+    // so the UI can correctly show them as "Not Deployed"
 
   return (
     <ManageReportsWrapper

@@ -106,23 +106,54 @@ export async function POST(
       }
     }
 
-    // Create hidden tenant_module_tabs record
-    const { data: hiddenTab, error: tabError } = await supabase
+    // Check if there's already a tenant_module_tabs record for this tab
+    const { data: existingTab } = await supabase
       .from('tenant_module_tabs')
-      .insert({
-        organization_id: organizationId,
-        module_id: orgModuleId,
-        tab_name: tabName,
-        organization_report_id: deployedReport.id, // Required: reference to deployed report
-        hidden_global_tab_id: globalTabId,
-        override_mode: 'hide', // Changed from 'hidden' to 'hide' to match schema
-        is_active: false, // Mark as inactive to hide it
-        sort_order: 999, // Put at end
-      })
-      .select()
-      .single();
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('module_id', orgModuleId)
+      .eq('tab_name', tabName)
+      .maybeSingle();
 
-    if (tabError) throw tabError;
+    let hiddenTab;
+
+    if (existingTab) {
+      // Update existing record to hide it
+      const { data: updatedTab, error: updateError } = await supabase
+        .from('tenant_module_tabs')
+        .update({
+          organization_report_id: deployedReport.id,
+          hidden_global_tab_id: globalTabId,
+          override_mode: 'hide',
+          is_active: false,
+          sort_order: 999,
+        })
+        .eq('id', existingTab.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      hiddenTab = updatedTab;
+    } else {
+      // Create new hidden tenant_module_tabs record
+      const { data: newTab, error: tabError } = await supabase
+        .from('tenant_module_tabs')
+        .insert({
+          organization_id: organizationId,
+          module_id: orgModuleId,
+          tab_name: tabName,
+          organization_report_id: deployedReport.id,
+          hidden_global_tab_id: globalTabId,
+          override_mode: 'hide',
+          is_active: false,
+          sort_order: 999,
+        })
+        .select()
+        .single();
+
+      if (tabError) throw tabError;
+      hiddenTab = newTab;
+    }
 
     return NextResponse.json({
       success: true,
