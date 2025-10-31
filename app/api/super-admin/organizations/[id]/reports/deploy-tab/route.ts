@@ -102,25 +102,38 @@ export async function POST(
     let orgModuleId = moduleId;
 
     if (!orgModuleId) {
+      console.log('[deploy-tab] Finding global module for:', moduleName);
+
       // Find the global module
-      const { data: globalModule } = await supabase
+      const { data: globalModule, error: globalModuleError } = await supabase
         .from('global_modules')
         .select('id')
         .eq('name', moduleName)
-        .single();
+        .maybeSingle();
+
+      if (globalModuleError) {
+        console.error('Error finding global module:', globalModuleError);
+      }
+      console.log('[deploy-tab] Global module:', globalModule);
 
       // Check if organization module exists
-      const { data: existingOrgModule } = await supabase
+      const { data: existingOrgModule, error: orgModuleError } = await supabase
         .from('organization_modules')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('name', moduleName)
-        .single();
+        .maybeSingle();
+
+      if (orgModuleError) {
+        console.error('Error finding organization module:', orgModuleError);
+      }
+      console.log('[deploy-tab] Existing org module:', existingOrgModule);
 
       if (existingOrgModule) {
         orgModuleId = existingOrgModule.id;
       } else {
         // Create organization module
+        console.log('[deploy-tab] Creating new organization module');
         const { data: newOrgModule, error: moduleError } = await supabase
           .from('organization_modules')
           .insert({
@@ -136,9 +149,12 @@ export async function POST(
           console.error('Error creating organization module:', moduleError);
           throw new Error(`Failed to create module: ${moduleError.message}`);
         }
+        console.log('[deploy-tab] New org module created:', newOrgModule);
         orgModuleId = newOrgModule.id;
       }
     }
+
+    console.log('[deploy-tab] Final orgModuleId:', orgModuleId);
 
     // Step 3: Check if there's an existing tenant_module_tabs entry (including hidden ones)
     const { data: existingTab } = await supabase
