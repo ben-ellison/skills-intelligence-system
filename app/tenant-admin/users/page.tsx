@@ -205,6 +205,33 @@ export default function UsersPage() {
     }
   };
 
+  const handleResendInvite = async (user: User) => {
+    if (!confirm(`Resend invitation email to ${user.email}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tenant-admin/users/${user.id}/resend-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend invitation');
+      }
+
+      if (data.emailSent) {
+        alert(`Invitation email sent successfully to ${user.email}`);
+      } else {
+        alert(`User record updated, but email failed to send. Check server logs for details.`);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const toggleRole = (roleId: string, isInvite: boolean) => {
     if (isInvite) {
       setInviteRoleIds((prev) =>
@@ -378,6 +405,14 @@ export default function UsersPage() {
                     >
                       Edit
                     </button>
+                    {user.status === 'invited' ? (
+                      <button
+                        onClick={() => handleResendInvite(user)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        Resend Invite
+                      </button>
+                    ) : null}
                     <button
                       onClick={() => handleStatusToggle(user)}
                       className="text-slate-600 hover:text-slate-900"
