@@ -40,6 +40,10 @@ export default function PowerBIReport({
       if (filterSaveTimeoutRef.current) {
         clearTimeout(filterSaveTimeoutRef.current);
       }
+      // Clean up polling interval
+      if (reportRef.current && (reportRef.current as any).filterPollInterval) {
+        clearInterval((reportRef.current as any).filterPollInterval);
+      }
     };
   }, [reportId, templateReportId, workspaceId]);
 
@@ -158,18 +162,30 @@ export default function PowerBIReport({
     }
   };
 
-  // Setup filter change listener
+  // Setup filter change listener using polling since filtersApplied event doesn't fire with persistentFiltersEnabled
   const setupFilterListener = (report: pbi.Report) => {
-    report.on('filtersApplied', async () => {
-      // Debounce filter saves to avoid excessive writes
-      if (filterSaveTimeoutRef.current) {
-        clearTimeout(filterSaveTimeoutRef.current);
-      }
+    let lastFilters: string | null = null;
 
-      filterSaveTimeoutRef.current = setTimeout(() => {
-        saveCurrentFilters(report);
-      }, 1000); // Wait 1 second after last filter change
-    });
+    // Poll for filter changes every 2 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        const currentFilters = await report.getFilters();
+        const currentFiltersStr = JSON.stringify(currentFilters);
+
+        // Only save if filters actually changed
+        if (currentFiltersStr !== lastFilters && currentFilters.length > 0) {
+          console.log('[Filter Persistence] Filters changed, saving...');
+          lastFilters = currentFiltersStr;
+          saveCurrentFilters(report);
+        }
+      } catch (error) {
+        // Report might be disposed, stop polling
+        clearInterval(pollInterval);
+      }
+    }, 2000);
+
+    // Store interval ID for cleanup
+    (report as any).filterPollInterval = pollInterval;
   };
 
   useEffect(() => {
