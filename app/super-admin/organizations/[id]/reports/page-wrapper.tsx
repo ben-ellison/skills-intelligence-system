@@ -301,6 +301,12 @@ export default function ManageReportsWrapper({
         console.log('[handleRemoveTab] orgId === undefined:', orgId === undefined);
         console.log('[handleRemoveTab] URL includes undefined:', url.includes('undefined'));
 
+        // Double-check the URL right before fetch
+        const finalUrl = `/api/super-admin/organizations/${organization.id}/reports/hide-tab`;
+        console.log('[handleRemoveTab] Final URL check:', finalUrl);
+        console.log('[handleRemoveTab] url === finalUrl:', url === finalUrl);
+        console.log('[handleRemoveTab] Calling fetch NOW with URL:', url);
+
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
