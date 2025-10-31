@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendUserInvitationEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -120,12 +121,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TODO: Send invitation email
+    // Get organization details for email
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', currentUser.organization_id)
+      .single();
+
+    // Send invitation email
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://demo1.skills-intelligence-system.com'}/signin`;
+    const emailSent = await sendUserInvitationEmail(
+      email,
+      name || email,
+      organization?.name || 'Your Organization',
+      session.user.name || session.user.email || 'A team member',
+      loginUrl
+    );
+
+    if (!emailSent) {
+      console.warn(`[INVITE] Email notification failed for ${email}, but user was created successfully`);
+    }
 
     return NextResponse.json({
       success: true,
       user: newUser,
       message: 'User invited successfully',
+      emailSent,
     });
   } catch (error) {
     console.error('Error in POST /api/tenant-admin/users/invite:', error);
