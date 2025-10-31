@@ -250,13 +250,15 @@ export default function TenantNavigation({
 
         {/* Bottom Navigation */}
         <div className="border-t border-[#0eafaa]">
-          <Link
-            href="/help"
+          <a
+            href="https://aivii.co.uk/knowledge-base"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
           >
             <HelpCircle className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Help & Knowledge Base</span>}
-          </Link>
+          </a>
           <Link
             href="/support"
             className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
