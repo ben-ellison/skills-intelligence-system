@@ -140,25 +140,60 @@ export async function POST(
       }
     }
 
-    // Step 3: Create tenant_module_tabs entry
-    const { data: tenantTab, error: tabError } = await supabase
+    // Step 3: Check if there's an existing tenant_module_tabs entry (including hidden ones)
+    const { data: existingTab } = await supabase
       .from('tenant_module_tabs')
-      .insert({
-        organization_id: organizationId,
-        module_id: orgModuleId,
-        tab_name: tabName,
-        sort_order: sortOrder || 0,
-        page_name: pageName,
-        organization_report_id: orgReportId,
-        override_mode: 'add',
-        is_active: true,
-      })
-      .select()
-      .single();
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('module_id', orgModuleId)
+      .eq('tab_name', tabName)
+      .maybeSingle();
 
-    if (tabError) {
-      console.error('Error creating tenant tab:', tabError);
-      throw new Error(`Failed to create tab configuration: ${tabError.message}`);
+    let tenantTab;
+
+    if (existingTab) {
+      // Update existing tab (might be a hidden tab we're re-enabling)
+      const { data: updatedTab, error: updateError } = await supabase
+        .from('tenant_module_tabs')
+        .update({
+          sort_order: sortOrder || 0,
+          page_name: pageName,
+          organization_report_id: orgReportId,
+          override_mode: 'add',
+          is_active: true,
+          hidden_global_tab_id: null, // Clear any hidden reference
+        })
+        .eq('id', existingTab.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating tenant tab:', updateError);
+        throw new Error(`Failed to update tab configuration: ${updateError.message}`);
+      }
+      tenantTab = updatedTab;
+    } else {
+      // Create new tenant_module_tabs entry
+      const { data: newTab, error: tabError } = await supabase
+        .from('tenant_module_tabs')
+        .insert({
+          organization_id: organizationId,
+          module_id: orgModuleId,
+          tab_name: tabName,
+          sort_order: sortOrder || 0,
+          page_name: pageName,
+          organization_report_id: orgReportId,
+          override_mode: 'add',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (tabError) {
+        console.error('Error creating tenant tab:', tabError);
+        throw new Error(`Failed to create tab configuration: ${tabError.message}`);
+      }
+      tenantTab = newTab;
     }
 
     return NextResponse.json({

@@ -453,15 +453,18 @@ export default function ManageReportsWrapper({
                       ot.module_id === orgModule.id && ot.tab_name === tab.tab_name
                     ) : null;
 
+                    // Check if this tab is explicitly hidden
+                    const isHidden = orgTab !== null && orgTab.override_mode === 'hide' && orgTab.is_active === false;
+
                     // Check if this tab's report is deployed to the organization
                     const reportDeployed = tab.report_id && deployedReports.some((dr: any) =>
                       dr.template_report_id === tab.report_id
                     );
 
-                    // A tab is considered "deployed" if either:
-                    // 1. It has a tenant_module_tabs record (orgTab exists)
-                    // 2. Its associated report is deployed to the organization
-                    const isDeployed = orgTab !== null || reportDeployed;
+                    // A tab is considered "deployed" if:
+                    // 1. It has a tenant_module_tabs record that is NOT a hide record
+                    // 2. OR its associated report is deployed to the organization AND it's not hidden
+                    const isDeployed = (orgTab !== null && !isHidden) || (reportDeployed && !isHidden);
 
                     return (
                       <tr key={`${module.id}-${tab.id}`} className="border-t border-slate-100 hover:bg-slate-50">
