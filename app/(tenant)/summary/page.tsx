@@ -355,8 +355,17 @@ function AISummaryTab() {
 
         {summary && (
           <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-            <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-ul:text-slate-700">
-              <ReactMarkdown>{summary}</ReactMarkdown>
+            <div className="markdown-content">
+              <ReactMarkdown
+                components={{
+                  h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-slate-900 mt-8 mb-4 pb-2 border-b-2 border-slate-300 first:mt-0" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 space-y-2" {...props} />,
+                  li: ({node, ...props}) => <li className="text-slate-700 leading-relaxed" {...props} />,
+                  p: ({node, ...props}) => <p className="text-slate-700 leading-relaxed mb-4" {...props} />
+                }}
+              >
+                {summary}
+              </ReactMarkdown>
             </div>
           </div>
         )}
