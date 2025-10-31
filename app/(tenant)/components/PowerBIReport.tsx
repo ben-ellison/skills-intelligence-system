@@ -350,22 +350,6 @@ export default function PowerBIReport({
         }
       `}</style>
 
-      {/* Refresh Button */}
-      {!loading && !error && (
-        <div className="absolute top-4 right-4 z-10">
-          <button
-            onClick={() => {
-              setReportLoading(true);
-              fetchEmbedToken(true); // Force refresh
-            }}
-            className="px-3 py-2 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors text-sm font-medium shadow-lg"
-            title="Refresh report data"
-          >
-            🔄 Refresh
-          </button>
-        </div>
-      )}
-
       {/* PowerBI Report Container */}
       {/* Note: Page navigation tabs are handled at the module level in page.tsx */}
       {/* Each module tab corresponds to a specific PowerBI report page */}
