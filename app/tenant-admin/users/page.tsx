@@ -225,7 +225,10 @@ export default function UsersPage() {
       if (data.emailSent) {
         alert(`Invitation email sent successfully to ${user.email}`);
       } else {
-        alert(`User record updated, but email failed to send. Check server logs for details.`);
+        const errorMsg = data.emailError
+          ? `Email failed: ${data.emailError}`
+          : 'Email failed to send. Check server logs for details.';
+        alert(`User record updated, but ${errorMsg}`);
       }
     } catch (err: any) {
       alert(err.message);

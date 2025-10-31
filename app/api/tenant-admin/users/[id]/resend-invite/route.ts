@@ -76,23 +76,31 @@ export async function POST(
 
     // Send invitation email
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://demo1.skills-intelligence-system.com'}/signin`;
-    const emailSent = await sendUserInvitationEmail(
-      user.email,
-      user.name || user.email,
-      organization?.name || 'Your Organization',
-      session.user.name || session.user.email || 'A team member',
-      loginUrl
-    );
 
-    if (!emailSent) {
-      console.warn(`[RESEND-INVITE] Email notification failed for ${user.email}`);
+    try {
+      await sendUserInvitationEmail(
+        user.email,
+        user.name || user.email,
+        organization?.name || 'Your Organization',
+        session.user.name || session.user.email || 'A team member',
+        loginUrl
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Invitation resent successfully',
+        emailSent: true,
+      });
+    } catch (emailError: any) {
+      console.error('[RESEND-INVITE] Email error:', emailError);
+
+      return NextResponse.json({
+        success: true,
+        message: 'User updated but email failed',
+        emailSent: false,
+        emailError: emailError.message || String(emailError),
+      });
     }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Invitation resent',
-      emailSent,
-    });
   } catch (error) {
     console.error('Error in POST /api/tenant-admin/users/[id]/resend-invite:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
