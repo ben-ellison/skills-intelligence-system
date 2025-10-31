@@ -183,128 +183,21 @@ export async function fetchPowerBIVisualData(
     throw new Error('Selected pages not found in report');
   }
 
-  // Call Azure Function to extract PowerBI data using Puppeteer
-  console.log('[PowerBI Fetch] Calling Azure Function to extract PowerBI data');
+  // Return page metadata for AI analysis
+  console.log('[PowerBI Fetch] Returning page metadata for AI analysis');
 
-  const debugInfo: any = {
-    step: 'starting_azure_function_call',
-    datasetId,
-    workspaceId: deployedReport.powerbi_workspace_id,
-    reportId: deployedReport.powerbi_report_id
+  return {
+    source: 'pages_metadata',
+    reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+    selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+    pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+    timestamp: new Date().toISOString(),
+    debug: {
+      datasetId,
+      pagesProcessed: pagesToProcess.length,
+      extractionMethod: 'metadata_only'
+    }
   };
-
-  try {
-    // First, generate an embed token for the report
-    console.log('[PowerBI Fetch] Generating embed token');
-    debugInfo.step = 'generating_embed_token';
-
-    const embedTokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/GenerateToken`;
-    const embedTokenResponse = await fetch(embedTokenUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        accessLevel: 'View',
-        allowSaveAs: false
-      })
-    });
-
-    if (!embedTokenResponse.ok) {
-      const error = await embedTokenResponse.text();
-      debugInfo.step = 'embed_token_generation_failed';
-      debugInfo.embedTokenError = error;
-      throw new Error(`Failed to generate embed token: ${error}`);
-    }
-
-    const embedTokenData = await embedTokenResponse.json();
-    const embedToken = embedTokenData.token;
-
-    debugInfo.step = 'embed_token_generated';
-    console.log('[PowerBI Fetch] Embed token generated, calling Azure Function');
-
-    // Call Azure Function with embed token
-    debugInfo.step = 'calling_azure_function';
-    const azureFunctionUrl = process.env.AZURE_FUNCTION_URL!;
-    const azureFunctionKey = process.env.AZURE_FUNCTION_KEY!;
-
-    debugInfo.azureFunctionUrl = azureFunctionUrl;
-
-    const azureResponse = await fetch(`${azureFunctionUrl}?code=${azureFunctionKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        embedToken,
-        reportId: deployedReport.powerbi_report_id,
-        workspaceId: deployedReport.powerbi_workspace_id
-      })
-    });
-
-    debugInfo.step = 'azure_function_response_received';
-    debugInfo.azureResponseStatus = azureResponse.status;
-
-    if (!azureResponse.ok) {
-      const errorText = await azureResponse.text();
-      debugInfo.step = 'azure_function_failed';
-      debugInfo.azureError = errorText;
-      console.error('[PowerBI Fetch] Azure Function failed:', errorText);
-      throw new Error(`Azure Function failed: ${azureResponse.status} - ${errorText}`);
-    }
-
-    const azureData = await azureResponse.json();
-
-    if (azureData.success && azureData.visuals && azureData.visuals.length > 0) {
-      debugInfo.step = 'data_extracted_successfully';
-      debugInfo.visualCount = azureData.visuals.length;
-      debugInfo.pageCount = azureData.pageCount;
-
-      console.log('[PowerBI Fetch] ✓ Successfully extracted data via Azure Function:', {
-        visualCount: azureData.visuals.length,
-        pageCount: azureData.pageCount
-      });
-
-      return {
-        source: 'powerbi_visuals',
-        reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-        selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-        visuals: azureData.visuals,
-        timestamp: new Date().toISOString(),
-        debug: {
-          datasetId,
-          pagesProcessed: pagesToProcess.length,
-          visualsExtracted: azureData.visuals.length,
-          extractionMethod: 'azure_function_puppeteer'
-        }
-      };
-    } else {
-      debugInfo.step = 'no_visuals_extracted';
-      debugInfo.azureData = azureData;
-      throw new Error('Azure Function returned no visuals');
-    }
-
-  } catch (azureError: any) {
-    console.error('[PowerBI Fetch] Azure Function extraction failed:', azureError.message);
-    debugInfo.step = 'azure_extraction_error';
-    debugInfo.catchError = azureError.message;
-    debugInfo.errorStack = azureError.stack;
-
-    // Fallback to metadata only
-    return {
-      source: 'pages_metadata',
-      reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-      selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-      pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-      note: 'Azure Function data extraction failed. Using page metadata only.',
-      debug: {
-        pagesAttempted: pagesToProcess.length,
-        extractionError: 'Azure Function extraction failed',
-        detailedDebug: debugInfo
-      }
-    };
-  }
 
   // Old visual export code (doesn't work - keeping for reference)
   // Collect visual data from all selected pages

@@ -150,35 +150,96 @@ function PowerBIReportTab({ loading, priorityData }: { loading: boolean; priorit
 function AISummaryTab() {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
+
+  // Load latest summary from database on mount
+  useEffect(() => {
+    loadLatestSummary();
+  }, []);
+
+  const loadLatestSummary = async () => {
+    try {
+      setLoadingInitial(true);
+      const response = await fetch('/api/ai-summaries/latest');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.summary) {
+          setSummary(data.summary.summary_text);
+          setLastGenerated(new Date(data.summary.created_at).toLocaleString());
+        }
+      }
+    } catch (err) {
+      console.error('Error loading latest summary:', err);
+    } finally {
+      setLoadingInitial(false);
+    }
+  };
 
   const handleGenerateSummary = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // First, fetch the current priority report data
+      // Dynamic import of client-side extraction library
+      const { extractPowerBIDataClient } = await import('@/lib/powerbi/extract-data-client');
+
+      // Get priority report info
       const priorityResponse = await fetch('/api/tenant/priority-report');
       const priorityData = await priorityResponse.json();
 
-      if (!priorityData.hasRole || !priorityData.hasPriorityReport) {
+      if (!priorityData.hasRole || !priorityData.hasPriorityReport || !priorityData.report) {
         setError('Cannot generate summary: No priority report available for your role');
         setLoading(false);
         return;
       }
 
-      // Get user's role ID
-      const userResponse = await fetch('/api/tenant/user-info');
-      const userData = await userResponse.json();
+      console.log('[AI Summary] Getting embed token for report:', priorityData.report.templateReportId);
 
-      console.log('User data response:', userData);
+      // Get PowerBI embed token
+      const embedTokenResponse = await fetch('/api/powerbi/embed-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateReportId: priorityData.report.templateReportId
+        })
+      });
 
-      if (!userResponse.ok) {
-        setError(`Cannot generate summary: ${userData.error || 'Failed to fetch user info'}`);
+      if (!embedTokenResponse.ok) {
+        const embedError = await embedTokenResponse.json();
+        setError(`Failed to get PowerBI access: ${embedError.error || 'Unknown error'}`);
         setLoading(false);
         return;
       }
+
+      const embedData = await embedTokenResponse.json();
+      console.log('[AI Summary] Got embed token, extracting PowerBI data...');
+      console.log('[AI Summary] Embed data:', {
+        hasAccessToken: !!embedData.accessToken,
+        hasEmbedUrl: !!embedData.embedUrl,
+        reportId: priorityData.report.reportId
+      });
+
+      // Extract real PowerBI data client-side using the SDK (same as working portal)
+      const extractionResult = await extractPowerBIDataClient(
+        embedData.accessToken,
+        priorityData.report.reportId,
+        embedData.embedUrl,
+        [] // Extract from all pages
+      );
+
+      if (!extractionResult.success) {
+        setError(`PowerBI data extraction failed: ${extractionResult.error || 'Unknown error'}`);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`[AI Summary] Extracted ${extractionResult.visuals.length} visuals from ${extractionResult.pageCount} pages`);
+
+      // Get user role ID for prompt lookup
+      const userResponse = await fetch('/api/tenant/user-info');
+      const userData = await userResponse.json();
 
       if (!userData.roleId) {
         setError('Cannot generate summary: No role assigned');
@@ -186,16 +247,20 @@ function AISummaryTab() {
         return;
       }
 
-      // Call the AI summary generation API (it will fetch PowerBI data server-side)
+      // Send extracted data to server for AI analysis
       const summaryResponse = await fetch('/api/ai/generate-summary', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roleId: userData.roleId,
-          fetchPowerBIData: true, // Tell the API to fetch PowerBI data
-        }),
+          prioritiesData: {
+            source: 'powerbi_visuals_client',
+            reportName: priorityData.report.name,
+            visuals: extractionResult.visuals,
+            pageCount: extractionResult.pageCount,
+            timestamp: new Date().toISOString()
+          }
+        })
       });
 
       if (!summaryResponse.ok) {
@@ -205,7 +270,7 @@ function AISummaryTab() {
       }
 
       const result = await summaryResponse.json();
-      console.log('Summary generated successfully:', result);
+      console.log('[AI Summary] Generated successfully with real PowerBI data');
       setSummary(result.summary);
       setLastGenerated(new Date().toLocaleString());
     } catch (err: any) {
@@ -257,7 +322,13 @@ function AISummaryTab() {
           </div>
         )}
 
-        {!summary && !error && !loading && (
+        {loadingInitial && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5c0]"></div>
+          </div>
+        )}
+
+        {!summary && !error && !loading && !loadingInitial && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
             <svg
               className="w-16 h-16 text-blue-400 mx-auto mb-4"

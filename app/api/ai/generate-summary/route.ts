@@ -223,7 +223,19 @@ ${fullPrompt}`,
     // Parse JSON response and format as markdown
     let summaryText;
     try {
+      console.log('[Generate Summary] Raw AI response (first 500 chars):', rawContent.substring(0, 500));
+
       const structured = JSON.parse(rawContent);
+
+      console.log('[Generate Summary] Parsed JSON structure:', {
+        hasSummaryOfInfo: !!structured.summaryOfInformation,
+        hasKeyRisks: !!structured.keyRisks,
+        hasPositiveIndicators: !!structured.positiveIndicators,
+        hasRecommendations: !!structured.summaryAndRecommendations,
+        summaryOfInfoLength: structured.summaryOfInformation?.length,
+        keyRisksLength: structured.keyRisks?.length,
+        positiveIndicatorsLength: structured.positiveIndicators?.length
+      });
 
       // Format as proper markdown
       const sections: string[] = [];
@@ -256,12 +268,22 @@ ${fullPrompt}`,
       console.log('[Generate Summary] Formatted markdown summary:', {
         length: summaryText.length,
         hasBullets: summaryText.includes('- '),
-        hasHeadings: summaryText.includes('## ')
+        hasHeadings: summaryText.includes('## '),
+        preview: summaryText.substring(0, 300)
       });
     } catch (parseError) {
       console.error('[Generate Summary] Failed to parse JSON response:', parseError);
-      // Fallback to raw content if parsing fails
-      summaryText = rawContent;
+      console.error('[Generate Summary] Raw content that failed to parse:', rawContent);
+
+      // Return error instead of falling back - we MUST use JSON format
+      return NextResponse.json(
+        {
+          error: 'AI returned invalid JSON response',
+          details: String(parseError),
+          rawResponse: rawContent.substring(0, 1000)
+        },
+        { status: 500 }
+      );
     }
 
     // Get user's organization
