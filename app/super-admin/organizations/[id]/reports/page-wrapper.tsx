@@ -259,6 +259,13 @@ export default function ManageReportsWrapper({
     console.log('[handleRemoveTab] Called with:', { module, tab, orgModule, orgTab });
     console.log('[handleRemoveTab] organization:', organization);
     console.log('[handleRemoveTab] organization.id:', organization?.id);
+    console.log('[handleRemoveTab] isSubmitting state:', isSubmitting);
+
+    // Prevent multiple simultaneous calls
+    if (isSubmitting) {
+      console.log('[handleRemoveTab] Already submitting, ignoring call');
+      return;
+    }
 
     if (!confirm(`Are you sure you want to remove this tab deployment? This will ${orgTab ? 'undeploy' : 'hide'} the tab from the organization.`)) {
       return;
@@ -290,6 +297,9 @@ export default function ManageReportsWrapper({
         console.log('[handleRemoveTab] About to fetch. orgId:', orgId);
         console.log('[handleRemoveTab] Constructed URL:', url);
         console.log('[handleRemoveTab] Full organization object:', JSON.stringify(organization));
+        console.log('[handleRemoveTab] typeof orgId:', typeof orgId);
+        console.log('[handleRemoveTab] orgId === undefined:', orgId === undefined);
+        console.log('[handleRemoveTab] URL includes undefined:', url.includes('undefined'));
 
         const response = await fetch(url, {
             method: 'POST',
@@ -303,8 +313,12 @@ export default function ManageReportsWrapper({
           }
         );
 
+        console.log('[handleRemoveTab] Response received. Status:', response.status);
+        console.log('[handleRemoveTab] Response URL:', response.url);
+
         if (!response.ok) {
           const data = await response.json();
+          console.log('[handleRemoveTab] Error response data:', data);
           throw new Error(data.error || 'Failed to hide tab');
         }
       }
