@@ -43,17 +43,43 @@ export default function PowerBIReport({
     };
   }, [reportId, templateReportId, workspaceId]);
 
-  const fetchEmbedToken = async () => {
+  const fetchEmbedToken = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
 
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cacheKey = `powerbi_token_${templateReportId}`;
+        const cachedDataStr = localStorage.getItem(cacheKey);
+
+        if (cachedDataStr) {
+          try {
+            const cachedData = JSON.parse(cachedDataStr);
+            const cacheAge = Date.now() - cachedData.timestamp;
+            const cacheMaxAge = 50 * 60 * 1000; // 50 minutes (tokens last ~60 mins)
+
+            if (cacheAge < cacheMaxAge) {
+              console.log('[PowerBI Cache] Using cached token, age:', Math.round(cacheAge / 60000), 'minutes');
+              setEmbedUrl(cachedData.embedUrl);
+              setAccessToken(cachedData.accessToken);
+              setLoading(false);
+              return;
+            } else {
+              console.log('[PowerBI Cache] Token expired, fetching new one');
+            }
+          } catch (cacheError) {
+            console.log('[PowerBI Cache] Invalid cache, fetching fresh token');
+          }
+        }
+      }
+
+      // Fetch fresh token
       const response = await fetch('/api/powerbi/embed-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateReportId: templateReportId,
-          // The API will look up the organization's deployed instance
         }),
       });
 
@@ -71,6 +97,14 @@ export default function PowerBIReport({
         throw new Error('Received invalid embed token response - missing embedUrl or accessToken');
       }
 
+      // Cache the token
+      const cacheKey = `powerbi_token_${templateReportId}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        embedUrl: data.embedUrl,
+        accessToken: data.accessToken,
+        timestamp: Date.now()
+      }));
+
       setEmbedUrl(data.embedUrl);
       setAccessToken(data.accessToken);
     } catch (err: any) {
@@ -80,29 +114,45 @@ export default function PowerBIReport({
     }
   };
 
-  // Load saved filters from localStorage
+  // Load saved filters from localStorage - use GLOBAL key for cross-report persistence
   const loadSavedFilters = async (report: pbi.Report) => {
     try {
-      const storageKey = `powerbi_filters_${reportName}`;
+      const storageKey = 'powerbi_filters_global'; // Changed to global key
       const savedFiltersStr = localStorage.getItem(storageKey);
 
       if (savedFiltersStr) {
         const savedFilters = JSON.parse(savedFiltersStr);
-        console.log('[Filter Persistence] Applying saved filters:', savedFilters);
-        await report.setFilters(savedFilters);
+        console.log('[Filter Persistence] Attempting to apply saved filters:', savedFilters);
+
+        // Try to apply filters, but don't fail if some filters don't exist in this report
+        try {
+          await report.setFilters(savedFilters);
+          console.log('[Filter Persistence] Filters applied successfully');
+        } catch (filterError: any) {
+          // If filters fail to apply, it's likely because field doesn't exist in this report
+          // Try applying filters one by one and skip ones that fail
+          console.log('[Filter Persistence] Batch apply failed, trying individual filters');
+          for (const filter of savedFilters) {
+            try {
+              await report.setFilters([filter]);
+            } catch (individualError) {
+              console.log('[Filter Persistence] Skipped incompatible filter:', filter);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('[Filter Persistence] Error loading filters:', error);
     }
   };
 
-  // Save current filters to localStorage (debounced)
+  // Save current filters to localStorage (debounced) - use GLOBAL key
   const saveCurrentFilters = async (report: pbi.Report) => {
     try {
       const filters = await report.getFilters();
-      const storageKey = `powerbi_filters_${reportName}`;
+      const storageKey = 'powerbi_filters_global'; // Changed to global key
       localStorage.setItem(storageKey, JSON.stringify(filters));
-      console.log('[Filter Persistence] Filters saved:', filters);
+      console.log('[Filter Persistence] Filters saved to global storage:', filters);
     } catch (error) {
       console.error('[Filter Persistence] Error saving filters:', error);
     }
@@ -299,6 +349,22 @@ export default function PowerBIReport({
           background-color: #033c3a !important;
         }
       `}</style>
+
+      {/* Refresh Button */}
+      {!loading && !error && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={() => {
+              setReportLoading(true);
+              fetchEmbedToken(true); // Force refresh
+            }}
+            className="px-3 py-2 bg-[#00e5c0] text-[#033c3a] rounded-lg hover:bg-[#0eafaa] transition-colors text-sm font-medium shadow-lg"
+            title="Refresh report data"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      )}
 
       {/* PowerBI Report Container */}
       {/* Note: Page navigation tabs are handled at the module level in page.tsx */}
