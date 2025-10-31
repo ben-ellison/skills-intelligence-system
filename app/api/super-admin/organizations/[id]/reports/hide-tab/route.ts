@@ -31,6 +31,36 @@ export async function POST(
     console.log('[hide-tab API] Request body:', body);
     const { moduleId, moduleName, tabName, globalTabId } = body;
 
+    // Find the global tab to get its report_id
+    const { data: globalTab, error: globalTabError } = await supabase
+      .from('module_tabs')
+      .select('report_id')
+      .eq('id', globalTabId)
+      .single();
+
+    if (globalTabError || !globalTab) {
+      return NextResponse.json(
+        { error: 'Global tab not found' },
+        { status: 404 }
+      );
+    }
+
+    // Find the deployed report for this organization that matches the global tab's template
+    const { data: deployedReport, error: deployedReportError } = await supabase
+      .from('organization_powerbi_reports')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('template_report_id', globalTab.report_id)
+      .eq('deployment_status', 'active')
+      .single();
+
+    if (deployedReportError || !deployedReport) {
+      return NextResponse.json(
+        { error: 'No deployed report found for this tab' },
+        { status: 404 }
+      );
+    }
+
     // Verify organization exists
     const { data: organization, error: orgError } = await supabase
       .from('organizations')
@@ -83,8 +113,9 @@ export async function POST(
         organization_id: organizationId,
         module_id: orgModuleId,
         tab_name: tabName,
+        organization_report_id: deployedReport.id, // Required: reference to deployed report
         hidden_global_tab_id: globalTabId,
-        override_mode: 'hidden',
+        override_mode: 'hide', // Changed from 'hidden' to 'hide' to match schema
         is_active: false, // Mark as inactive to hide it
         sort_order: 999, // Put at end
       })
