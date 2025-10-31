@@ -40,12 +40,18 @@ export async function sendUserInvitationEmail(
   loginUrl: string
 ): Promise<boolean> {
   try {
+    console.log('[EMAIL] Starting sendUserInvitationEmail for:', recipientEmail);
+    console.log('[EMAIL] Environment check - tenantId:', !!tenantId, 'clientId:', !!clientId, 'clientSecret:', !!clientSecret, 'senderEmail:', senderEmail);
+
     if (!tenantId || !clientId || !clientSecret || !senderEmail) {
       console.warn('[EMAIL] Microsoft Graph not configured - invitation email not sent');
+      console.warn('[EMAIL] Missing values - tenantId:', !!tenantId, 'clientId:', !!clientId, 'clientSecret:', !!clientSecret, 'senderEmail:', !!senderEmail);
       return false;
     }
 
+    console.log('[EMAIL] Creating Graph client...');
     const client = getGraphClient();
+    console.log('[EMAIL] Graph client created successfully');
 
     const message = {
       message: {
@@ -121,13 +127,19 @@ export async function sendUserInvitationEmail(
       saveToSentItems: true,
     };
 
+    console.log('[EMAIL] Sending email via Graph API...');
     await client.api(`/users/${senderEmail}/sendMail`).post(message);
 
-    console.log(`[EMAIL] Invitation email sent to ${recipientEmail}`);
+    console.log(`[EMAIL] Invitation email sent successfully to ${recipientEmail}`);
     return true;
   } catch (error) {
     console.error('[EMAIL] Error sending invitation email:', error);
-    console.error('[EMAIL] Error details:', JSON.stringify(error, null, 2));
+    console.error('[EMAIL] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[EMAIL] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[EMAIL] Error stack:', error instanceof Error ? error.stack : 'N/A');
+    if (typeof error === 'object' && error !== null) {
+      console.error('[EMAIL] Error details:', JSON.stringify(error, null, 2));
+    }
     return false;
   }
 }
