@@ -118,76 +118,123 @@ export default function PowerBIReport({
     }
   };
 
-  // Load saved filters from localStorage - use GLOBAL key for cross-report persistence
+  // Load saved slicer state from localStorage - use GLOBAL key for cross-page persistence
   const loadSavedFilters = async (report: pbi.Report) => {
     try {
-      const storageKey = 'powerbi_filters_global'; // Changed to global key
-      const savedFiltersStr = localStorage.getItem(storageKey);
+      const storageKey = 'powerbi_slicers_global';
+      const savedSlicersStr = localStorage.getItem(storageKey);
 
-      if (savedFiltersStr) {
-        const savedFilters = JSON.parse(savedFiltersStr);
-        console.log('[Filter Persistence] Attempting to apply saved filters:', savedFilters);
+      if (savedSlicersStr) {
+        const savedSlicers = JSON.parse(savedSlicersStr);
+        console.log('[Filter Persistence] Attempting to restore slicer states:', savedSlicers);
 
-        // Try to apply filters, but don't fail if some filters don't exist in this report
-        try {
-          await report.setFilters(savedFilters);
-          console.log('[Filter Persistence] Filters applied successfully');
-        } catch (filterError: any) {
-          // If filters fail to apply, it's likely because field doesn't exist in this report
-          // Try applying filters one by one and skip ones that fail
-          console.log('[Filter Persistence] Batch apply failed, trying individual filters');
-          for (const filter of savedFilters) {
+        const pages = await report.getPages();
+
+        // Apply saved slicer states
+        for (const savedSlicer of savedSlicers) {
+          const page = pages.find(p => p.name === savedSlicer.pageName);
+          if (page) {
             try {
-              await report.setFilters([filter]);
-            } catch (individualError) {
-              console.log('[Filter Persistence] Skipped incompatible filter:', filter);
+              const visuals = await page.getVisuals();
+              const slicer = visuals.find(v => v.name === savedSlicer.visualName && v.type === 'slicer');
+
+              if (slicer) {
+                await slicer.setSlicerState(savedSlicer.state);
+                console.log('[Filter Persistence] Restored slicer:', savedSlicer.visualName);
+              }
+            } catch (err) {
+              console.log('[Filter Persistence] Could not restore slicer:', savedSlicer.visualName);
             }
           }
         }
       }
     } catch (error) {
-      console.error('[Filter Persistence] Error loading filters:', error);
+      console.error('[Filter Persistence] Error loading slicer states:', error);
     }
   };
 
-  // Save current filters to localStorage (debounced) - use GLOBAL key
+  // Save current slicer state to localStorage - use GLOBAL key
   const saveCurrentFilters = async (report: pbi.Report) => {
     try {
-      const filters = await report.getFilters();
-      const storageKey = 'powerbi_filters_global'; // Changed to global key
-      localStorage.setItem(storageKey, JSON.stringify(filters));
-      console.log('[Filter Persistence] Filters saved to global storage:', filters);
+      const pages = await report.getPages();
+      const slicerStates: any[] = [];
+
+      // Get slicer state from all pages
+      for (const page of pages) {
+        const visuals = await page.getVisuals();
+
+        for (const visual of visuals) {
+          if (visual.type === 'slicer') {
+            try {
+              const slicerState = await visual.getSlicerState();
+              slicerStates.push({
+                pageName: page.name,
+                visualName: visual.name,
+                state: slicerState
+              });
+            } catch (err) {
+              console.log('[Filter Persistence] Could not get slicer state for:', visual.name);
+            }
+          }
+        }
+      }
+
+      const storageKey = 'powerbi_slicers_global';
+      localStorage.setItem(storageKey, JSON.stringify(slicerStates));
+      console.log('[Filter Persistence] Slicer states saved:', slicerStates);
     } catch (error) {
-      console.error('[Filter Persistence] Error saving filters:', error);
+      console.error('[Filter Persistence] Error saving slicer states:', error);
     }
   };
 
-  // Setup filter change listener using polling since filtersApplied event doesn't fire with persistentFiltersEnabled
+  // Setup slicer change listener using polling
   const setupFilterListener = (report: pbi.Report) => {
-    let lastFilters: string | null = null;
+    let lastSlicerState: string | null = null;
     let pollCount = 0;
 
-    console.log('[Filter Persistence] Starting filter polling...');
+    console.log('[Filter Persistence] Starting slicer state polling...');
 
-    // Poll for filter changes every 2 seconds
+    // Poll for slicer changes every 2 seconds
     const pollInterval = setInterval(async () => {
       try {
         pollCount++;
-        const currentFilters = await report.getFilters();
-        const currentFiltersStr = JSON.stringify(currentFilters);
+
+        // Get current slicer states
+        const pages = await report.getPages();
+        const currentSlicers: any[] = [];
+
+        for (const page of pages) {
+          const visuals = await page.getVisuals();
+          for (const visual of visuals) {
+            if (visual.type === 'slicer') {
+              try {
+                const state = await visual.getSlicerState();
+                currentSlicers.push({
+                  pageName: page.name,
+                  visualName: visual.name,
+                  state: state
+                });
+              } catch (err) {
+                // Skip slicers that don't support getSlicerState
+              }
+            }
+          }
+        }
+
+        const currentSlicerStr = JSON.stringify(currentSlicers);
 
         // Log every 5th poll to show it's working
         if (pollCount % 5 === 0) {
-          console.log('[Filter Persistence] Poll check #' + pollCount + ', filters count:', currentFilters.length);
+          console.log('[Filter Persistence] Poll check #' + pollCount + ', slicers count:', currentSlicers.length);
         }
 
-        // Only save if filters actually changed
-        if (currentFiltersStr !== lastFilters) {
-          if (currentFilters.length > 0) {
-            console.log('[Filter Persistence] Filters changed, saving...', currentFilters);
+        // Only save if slicer state actually changed
+        if (currentSlicerStr !== lastSlicerState) {
+          if (currentSlicers.length > 0) {
+            console.log('[Filter Persistence] Slicer state changed, saving...', currentSlicers);
             saveCurrentFilters(report);
           }
-          lastFilters = currentFiltersStr;
+          lastSlicerState = currentSlicerStr;
         }
       } catch (error) {
         console.error('[Filter Persistence] Polling error:', error);
@@ -272,7 +319,7 @@ export default function PowerBIReport({
           },
           navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
-          persistentFiltersEnabled: true, // Enable PowerBI's built-in filter persistence
+          persistentFiltersEnabled: false, // Disable PowerBI persistence, use custom slicer persistence
         },
       };
 
