@@ -101,7 +101,7 @@ export async function POST(
           template_report_id: templateReportId,
           powerbi_report_id: reportId,
           powerbi_workspace_id: organization.powerbi_workspace_id,
-          name_for_powerbi_reports: reportName,
+          name: reportName,
           deployment_status: 'active',
           deployed_at: new Date().toISOString(),
         })
