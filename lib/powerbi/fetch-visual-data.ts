@@ -183,211 +183,128 @@ export async function fetchPowerBIVisualData(
     throw new Error('Selected pages not found in report');
   }
 
-  // Try to get dataset schema and query tables
-  console.log('[PowerBI Fetch] Fetching dataset schema');
+  // Call Azure Function to extract PowerBI data using Puppeteer
+  console.log('[PowerBI Fetch] Calling Azure Function to extract PowerBI data');
 
   const debugInfo: any = {
-    step: 'starting',
+    step: 'starting_azure_function_call',
     datasetId,
-    workspaceId: deployedReport.powerbi_workspace_id
+    workspaceId: deployedReport.powerbi_workspace_id,
+    reportId: deployedReport.powerbi_report_id
   };
 
   try {
-    // Get dataset schema to discover tables
-    const datasetUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}`;
-    debugInfo.step = 'fetching_dataset';
-    debugInfo.datasetUrl = datasetUrl;
+    // First, generate an embed token for the report
+    console.log('[PowerBI Fetch] Generating embed token');
+    debugInfo.step = 'generating_embed_token';
 
-    const datasetResponse = await fetch(datasetUrl, {
-      headers: { 'Authorization': `Bearer ${access_token}` }
+    const embedTokenUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/reports/${deployedReport.powerbi_report_id}/GenerateToken`;
+    const embedTokenResponse = await fetch(embedTokenUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        accessLevel: 'View',
+        allowSaveAs: false
+      })
     });
 
-    debugInfo.step = 'dataset_response_received';
-    debugInfo.datasetResponseStatus = datasetResponse.status;
-
-    if (!datasetResponse.ok) {
-      const errorText = await datasetResponse.text();
-      debugInfo.step = 'dataset_fetch_failed';
-      debugInfo.error = errorText;
-      console.error('[PowerBI Fetch] Dataset fetch failed:', errorText);
-      throw new Error(`Dataset fetch failed: ${datasetResponse.status} - ${errorText}`);
+    if (!embedTokenResponse.ok) {
+      const error = await embedTokenResponse.text();
+      debugInfo.step = 'embed_token_generation_failed';
+      debugInfo.embedTokenError = error;
+      throw new Error(`Failed to generate embed token: ${error}`);
     }
 
-    if (datasetResponse.ok) {
-      const datasetInfo = await datasetResponse.json();
-      debugInfo.step = 'dataset_info_retrieved';
-      debugInfo.datasetName = datasetInfo.name;
+    const embedTokenData = await embedTokenResponse.json();
+    const embedToken = embedTokenData.token;
 
-      console.log('[PowerBI Fetch] Dataset info retrieved:', {
-        name: datasetInfo.name,
-        hasSchema: !!datasetInfo.tables
+    debugInfo.step = 'embed_token_generated';
+    console.log('[PowerBI Fetch] Embed token generated, calling Azure Function');
+
+    // Call Azure Function with embed token
+    debugInfo.step = 'calling_azure_function';
+    const azureFunctionUrl = process.env.AZURE_FUNCTION_URL!;
+    const azureFunctionKey = process.env.AZURE_FUNCTION_KEY!;
+
+    debugInfo.azureFunctionUrl = azureFunctionUrl;
+
+    const azureResponse = await fetch(`${azureFunctionUrl}?code=${azureFunctionKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        embedToken,
+        reportId: deployedReport.powerbi_report_id,
+        workspaceId: deployedReport.powerbi_workspace_id
+      })
+    });
+
+    debugInfo.step = 'azure_function_response_received';
+    debugInfo.azureResponseStatus = azureResponse.status;
+
+    if (!azureResponse.ok) {
+      const errorText = await azureResponse.text();
+      debugInfo.step = 'azure_function_failed';
+      debugInfo.azureError = errorText;
+      console.error('[PowerBI Fetch] Azure Function failed:', errorText);
+      throw new Error(`Azure Function failed: ${azureResponse.status} - ${errorText}`);
+    }
+
+    const azureData = await azureResponse.json();
+
+    if (azureData.success && azureData.visuals && azureData.visuals.length > 0) {
+      debugInfo.step = 'data_extracted_successfully';
+      debugInfo.visualCount = azureData.visuals.length;
+      debugInfo.pageCount = azureData.pageCount;
+
+      console.log('[PowerBI Fetch] ✓ Successfully extracted data via Azure Function:', {
+        visualCount: azureData.visuals.length,
+        pageCount: azureData.pageCount
       });
 
-      // Use DAX INFO functions to discover schema without /tables endpoint
-      // The /tables endpoint only works for Push API datasets, not regular datasets
-      // So we use DAX system functions instead
-      debugInfo.step = 'discovering_schema_via_dax';
-
-      const queryUrl = `https://api.powerbi.com/v1.0/myorg/groups/${deployedReport.powerbi_workspace_id}/datasets/${datasetId}/executeQueries`;
-      debugInfo.queryUrl = queryUrl;
-
-      // First, discover all tables in the dataset using DAX system functions
-      const discoverQuery = {
-        queries: [{
-          query: `
-            EVALUATE
-            SELECTCOLUMNS(
-              INFO.TABLES(),
-              "TableName", [Name],
-              "IsHidden", [IsHidden]
-            )
-          `
-        }],
-        serializerSettings: { includeNulls: true }
+      return {
+        source: 'powerbi_visuals',
+        reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+        selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+        visuals: azureData.visuals,
+        timestamp: new Date().toISOString(),
+        debug: {
+          datasetId,
+          pagesProcessed: pagesToProcess.length,
+          visualsExtracted: azureData.visuals.length,
+          extractionMethod: 'azure_function_puppeteer'
+        }
       };
-
-      debugInfo.step = 'executing_schema_discovery';
-
-      const discoverResponse = await fetch(queryUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(discoverQuery)
-      });
-
-      debugInfo.step = 'schema_discovery_response_received';
-      debugInfo.discoverResponseStatus = discoverResponse.status;
-
-      if (!discoverResponse.ok) {
-        const errorText = await discoverResponse.text();
-        debugInfo.step = 'schema_discovery_failed';
-        debugInfo.discoverError = errorText;
-        console.error('[PowerBI Fetch] Schema discovery failed:', errorText);
-        throw new Error(`Schema discovery failed: ${discoverResponse.status} - ${errorText}`);
-      }
-
-      const discoverData = await discoverResponse.json();
-      const tableRows = discoverData.results?.[0]?.tables?.[0]?.rows || [];
-
-      // Filter out hidden tables and get first few table names
-      const tables = tableRows
-        .filter((row: any) => !row['[IsHidden]'])
-        .map((row: any) => ({ name: row['[TableName]'] }));
-
-      debugInfo.step = 'schema_discovered';
-      debugInfo.tableCount = tables.length;
-      debugInfo.tableNames = tables.slice(0, 5).map((t: any) => t.name);
-
-      console.log('[PowerBI Fetch] Discovered tables via DAX:', {
-        count: tables.length,
-        names: tables.slice(0, 5).map((t: any) => t.name)
-      });
-
-      if (tables.length > 0) {
-        // Query the first few tables for sample data
-        const tableQueries = tables.slice(0, 3).map((table: any) => ({
-          query: `EVALUATE TOPN(20, '${table.name}')`
-        }));
-
-        debugInfo.step = 'executing_data_queries';
-        debugInfo.queryCount = tableQueries.length;
-        debugInfo.queriedTables = tableQueries.map((q: any, idx: number) => tables[idx].name);
-
-        const queryResponse = await fetch(queryUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            queries: tableQueries,
-            serializerSettings: { includeNulls: true }
-          })
-        });
-
-        debugInfo.step = 'data_query_response_received';
-        debugInfo.queryResponseStatus = queryResponse.status;
-
-        if (!queryResponse.ok) {
-          const errorText = await queryResponse.text();
-          debugInfo.step = 'data_query_failed';
-          debugInfo.queryError = errorText;
-          console.error('[PowerBI Fetch] Data query failed:', errorText);
-          throw new Error(`Data query failed: ${queryResponse.status} - ${errorText}`);
-        }
-
-        const queryData = await queryResponse.json();
-        const results = queryData.results || [];
-
-        debugInfo.step = 'data_retrieved';
-        debugInfo.resultCount = results.length;
-        debugInfo.rowsInFirstTable = results[0]?.tables?.[0]?.rows?.length || 0;
-
-        console.log('[PowerBI Fetch] Data queries executed successfully:', {
-          tableCount: results.length,
-          rowsInFirstTable: results[0]?.tables?.[0]?.rows?.length || 0
-        });
-
-        // Combine results from all tables
-        const allData: any[] = [];
-        results.forEach((result: any, idx: number) => {
-          const rows = result.tables?.[0]?.rows || [];
-          if (rows.length > 0) {
-            allData.push({
-              tableName: tables[idx].name,
-              rowCount: rows.length,
-              sampleData: rows.slice(0, 10)
-            });
-          }
-        });
-
-        if (allData.length > 0) {
-          return {
-            source: 'dataset_query',
-            reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-            selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-            dataExtract: allData,
-            timestamp: new Date().toISOString(),
-            debug: {
-              datasetId,
-              pagesProcessed: pagesToProcess.length,
-              tablesQueried: allData.length,
-              extractionMethod: 'dax_info_tables'
-            }
-          };
-        }
-      } else {
-        debugInfo.step = 'no_tables_discovered';
-        debugInfo.note = 'No tables found via DAX INFO.TABLES()';
-      }
     } else {
-      debugInfo.step = 'dataset_response_not_ok';
+      debugInfo.step = 'no_visuals_extracted';
+      debugInfo.azureData = azureData;
+      throw new Error('Azure Function returned no visuals');
     }
 
-    console.log('[PowerBI Fetch] Dataset query approach failed, falling back to metadata');
-    debugInfo.step = 'query_approach_failed';
-  } catch (queryError: any) {
-    console.error('[PowerBI Fetch] Dataset query error:', queryError.message);
-    debugInfo.step = 'caught_error';
-    debugInfo.catchError = queryError.message;
-    debugInfo.errorStack = queryError.stack;
+  } catch (azureError: any) {
+    console.error('[PowerBI Fetch] Azure Function extraction failed:', azureError.message);
+    debugInfo.step = 'azure_extraction_error';
+    debugInfo.catchError = azureError.message;
+    debugInfo.errorStack = azureError.stack;
+
+    // Fallback to metadata only
+    return {
+      source: 'pages_metadata',
+      reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
+      selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
+      pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
+      note: 'Azure Function data extraction failed. Using page metadata only.',
+      debug: {
+        pagesAttempted: pagesToProcess.length,
+        extractionError: 'Azure Function extraction failed',
+        detailedDebug: debugInfo
+      }
+    };
   }
-
-  // Fallback to metadata only
-  return {
-    source: 'pages_metadata',
-    reportName: (aiPrompt.powerbi_reports as any)?.name || 'Unknown',
-    selectedPages: pagesToProcess.map((p: any) => p.displayName || p.name),
-    pages: pagesToProcess.map((p: any) => ({ name: p.name, displayName: p.displayName })),
-    note: 'Data extraction not available. Using page metadata only.',
-    debug: {
-      pagesAttempted: pagesToProcess.length,
-      extractionError: 'Dataset query failed',
-      detailedDebug: debugInfo
-    }
-  };
 
   // Old visual export code (doesn't work - keeping for reference)
   // Collect visual data from all selected pages
