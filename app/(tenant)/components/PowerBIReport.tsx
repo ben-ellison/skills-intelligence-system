@@ -25,6 +25,7 @@ export default function PowerBIReport({
   const [error, setError] = useState<string | null>(null);
   const [reportLoading, setReportLoading] = useState(true);
   const reportRef = useRef<pbi.Embed | null>(null);
+  const filterSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Reset state when switching to a different report
@@ -33,6 +34,13 @@ export default function PowerBIReport({
     setReportLoading(true);
     reportRef.current = null;
     fetchEmbedToken();
+
+    // Cleanup function
+    return () => {
+      if (filterSaveTimeoutRef.current) {
+        clearTimeout(filterSaveTimeoutRef.current);
+      }
+    };
   }, [reportId, templateReportId, workspaceId]);
 
   const fetchEmbedToken = async () => {
@@ -70,6 +78,48 @@ export default function PowerBIReport({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load saved filters from localStorage
+  const loadSavedFilters = async (report: pbi.Report) => {
+    try {
+      const storageKey = `powerbi_filters_${reportName}`;
+      const savedFiltersStr = localStorage.getItem(storageKey);
+
+      if (savedFiltersStr) {
+        const savedFilters = JSON.parse(savedFiltersStr);
+        console.log('[Filter Persistence] Applying saved filters:', savedFilters);
+        await report.setFilters(savedFilters);
+      }
+    } catch (error) {
+      console.error('[Filter Persistence] Error loading filters:', error);
+    }
+  };
+
+  // Save current filters to localStorage (debounced)
+  const saveCurrentFilters = async (report: pbi.Report) => {
+    try {
+      const filters = await report.getFilters();
+      const storageKey = `powerbi_filters_${reportName}`;
+      localStorage.setItem(storageKey, JSON.stringify(filters));
+      console.log('[Filter Persistence] Filters saved:', filters);
+    } catch (error) {
+      console.error('[Filter Persistence] Error saving filters:', error);
+    }
+  };
+
+  // Setup filter change listener
+  const setupFilterListener = (report: pbi.Report) => {
+    report.on('filtersApplied', async () => {
+      // Debounce filter saves to avoid excessive writes
+      if (filterSaveTimeoutRef.current) {
+        clearTimeout(filterSaveTimeoutRef.current);
+      }
+
+      filterSaveTimeoutRef.current = setTimeout(() => {
+        saveCurrentFilters(report);
+      }, 1000); // Wait 1 second after last filter change
+    });
   };
 
   useEffect(() => {
@@ -158,6 +208,12 @@ export default function PowerBIReport({
         console.log('Report loaded!');
 
         try {
+          // Load saved filters first
+          await loadSavedFilters(report);
+
+          // Setup filter change listener
+          setupFilterListener(report);
+
           // If a specific page was requested, navigate to it
           if (pageName) {
             const reportPages = await report.getPages();
