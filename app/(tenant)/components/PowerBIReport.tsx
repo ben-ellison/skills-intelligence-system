@@ -309,8 +309,21 @@ export default function PowerBIReport({
         }
       });
 
-      report.on('rendered', () => {
+      report.on('rendered', async () => {
         console.log('Report rendered!');
+
+        // Setup filter persistence on first render
+        if (!(report as any).filterListenerSetup) {
+          try {
+            console.log('[Filter Persistence] Setting up on rendered event');
+            await loadSavedFilters(report);
+            setupFilterListener(report);
+            (report as any).filterListenerSetup = true;
+          } catch (err) {
+            console.error('[Filter Persistence] Setup error:', err);
+          }
+        }
+
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
           setReportLoading(false);
