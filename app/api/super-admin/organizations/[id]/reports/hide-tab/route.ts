@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +11,16 @@ export async function POST(
     console.log('[hide-tab API] Request received');
     console.log('[hide-tab API] params before await:', params);
 
-    const supabase = await createClient();
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.isSuperAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Super Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const supabase = createAdminClient();
     const awaitedParams = await params;
     console.log('[hide-tab API] params after await:', awaitedParams);
 
