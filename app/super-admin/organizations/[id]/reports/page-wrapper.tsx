@@ -256,6 +256,10 @@ export default function ManageReportsWrapper({
   };
 
   const handleRemoveTab = async (module: any, tab: any, orgModule: any, orgTab: any) => {
+    console.log('[handleRemoveTab] Called with:', { module, tab, orgModule, orgTab });
+    console.log('[handleRemoveTab] organization:', organization);
+    console.log('[handleRemoveTab] organization.id:', organization?.id);
+
     if (!confirm(`Are you sure you want to remove this tab deployment? This will ${orgTab ? 'undeploy' : 'hide'} the tab from the organization.`)) {
       return;
     }
@@ -266,6 +270,7 @@ export default function ManageReportsWrapper({
     try {
       if (orgTab) {
         // Tab has a tenant_module_tabs record - delete it
+        console.log('[handleRemoveTab] Building URL with org ID:', organization.id);
         const response = await fetch(
           `/api/super-admin/organizations/${organization.id}/reports/remove-tab/${orgTab.id}`,
           {
