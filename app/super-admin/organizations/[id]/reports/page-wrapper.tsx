@@ -71,6 +71,9 @@ export default function ManageReportsWrapper({
   orgModules = [],
   orgTabs = [],
 }: ManageReportsProps) {
+  console.log('[ManageReportsWrapper] Organization:', organization);
+  console.log('[ManageReportsWrapper] Organization ID:', organization?.id);
+
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
