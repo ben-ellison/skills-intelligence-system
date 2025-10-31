@@ -259,13 +259,15 @@ export default function TenantNavigation({
             <HelpCircle className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Help & Knowledge Base</span>}
           </a>
-          <Link
-            href="/support"
+          <a
+            href="https://support.aivii.co.uk/tickets-view"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
           >
             <Headphones className="w-5 h-5" />
             {sidebarOpen && <span className="ml-3">Support</span>}
-          </Link>
+          </a>
           <Link
             href="/tenant-admin"
             className="flex items-center px-4 py-3 text-sm text-[#033c3a] hover:bg-[#00f9e3]/20 transition-colors"
