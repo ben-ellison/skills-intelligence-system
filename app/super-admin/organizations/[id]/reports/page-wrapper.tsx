@@ -285,9 +285,13 @@ export default function ManageReportsWrapper({
       } else {
         // Tab doesn't have a tenant_module_tabs record but report is deployed
         // Create a hidden tab record to hide it from the organization
-        const response = await fetch(
-          `/api/super-admin/organizations/${organization.id}/reports/hide-tab`,
-          {
+        const orgId = organization.id;
+        const url = `/api/super-admin/organizations/${orgId}/reports/hide-tab`;
+        console.log('[handleRemoveTab] About to fetch. orgId:', orgId);
+        console.log('[handleRemoveTab] Constructed URL:', url);
+        console.log('[handleRemoveTab] Full organization object:', JSON.stringify(organization));
+
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
