@@ -78,6 +78,22 @@ export async function POST(
     let orgReportId = existingReport?.id;
 
     if (!orgReportId) {
+      // Get the template report name to use for the deployed report
+      let reportName = 'Deployed Report'; // Default fallback
+      if (templateReportId) {
+        const { data: templateReport } = await supabase
+          .from('powerbi_reports')
+          .select('name')
+          .eq('id', templateReportId)
+          .maybeSingle();
+
+        if (templateReport?.name) {
+          reportName = templateReport.name;
+        }
+      }
+
+      console.log('[deploy-tab] Creating organization report with name:', reportName);
+
       const { data: deployedReport, error: deployError } = await supabase
         .from('organization_powerbi_reports')
         .insert({
@@ -85,6 +101,7 @@ export async function POST(
           template_report_id: templateReportId,
           powerbi_report_id: reportId,
           powerbi_workspace_id: organization.powerbi_workspace_id,
+          name_for_powerbi_reports: reportName,
           deployment_status: 'active',
           deployed_at: new Date().toISOString(),
         })
