@@ -130,20 +130,45 @@ export default function PowerBIReport({
 
         const pages = await report.getPages();
 
-        // Apply saved slicer states
+        // Apply saved slicer states by matching target fields
         for (const savedSlicer of savedSlicers) {
-          const page = pages.find(p => p.name === savedSlicer.pageName);
-          if (page) {
+          let restored = false;
+
+          // Try to find matching slicer on any page
+          for (const page of pages) {
             try {
               const visuals = await page.getVisuals();
-              const slicer = visuals.find(v => v.name === savedSlicer.visualName && v.type === 'slicer');
 
-              if (slicer) {
-                await slicer.setSlicerState(savedSlicer.state);
-                console.log('[Filter Persistence] Restored slicer:', savedSlicer.visualName);
+              for (const visual of visuals) {
+                if (visual.type === 'slicer') {
+                  try {
+                    const currentState = await visual.getSlicerState();
+
+                    // Extract target field from current slicer
+                    let targetField = null;
+                    if (currentState?.targets && currentState.targets.length > 0) {
+                      const target = currentState.targets[0];
+                      if (target.table && target.column) {
+                        targetField = `${target.table}.${target.column}`;
+                      }
+                    }
+
+                    // If target field matches, apply saved state
+                    if (targetField === savedSlicer.targetField) {
+                      await visual.setSlicerState(savedSlicer.state);
+                      console.log('[Filter Persistence] Restored slicer for field:', targetField);
+                      restored = true;
+                      break;
+                    }
+                  } catch (err) {
+                    // Skip slicers that don't support getSlicerState
+                  }
+                }
               }
+
+              if (restored) break;
             } catch (err) {
-              console.log('[Filter Persistence] Could not restore slicer:', savedSlicer.visualName);
+              // Skip pages that fail
             }
           }
         }
@@ -167,13 +192,24 @@ export default function PowerBIReport({
           if (visual.type === 'slicer') {
             try {
               const slicerState = await visual.getSlicerState();
-              slicerStates.push({
-                pageName: page.name,
-                visualName: visual.name,
-                state: slicerState
-              });
+
+              // Extract the target field from the slicer state for cross-page matching
+              let targetField = null;
+              if (slicerState?.targets && slicerState.targets.length > 0) {
+                const target = slicerState.targets[0];
+                if (target.table && target.column) {
+                  targetField = `${target.table}.${target.column}`;
+                }
+              }
+
+              if (targetField) {
+                slicerStates.push({
+                  targetField: targetField, // Use field name instead of page/visual name
+                  state: slicerState
+                });
+              }
             } catch (err) {
-              console.log('[Filter Persistence] Could not get slicer state for:', visual.name);
+              // Skip slicers that don't support getSlicerState or are still loading
             }
           }
         }
@@ -208,12 +244,23 @@ export default function PowerBIReport({
           for (const visual of visuals) {
             if (visual.type === 'slicer') {
               try {
-                const state = await visual.getSlicerState();
-                currentSlicers.push({
-                  pageName: page.name,
-                  visualName: visual.name,
-                  state: state
-                });
+                const slicerState = await visual.getSlicerState();
+
+                // Extract target field for matching
+                let targetField = null;
+                if (slicerState?.targets && slicerState.targets.length > 0) {
+                  const target = slicerState.targets[0];
+                  if (target.table && target.column) {
+                    targetField = `${target.table}.${target.column}`;
+                  }
+                }
+
+                if (targetField) {
+                  currentSlicers.push({
+                    targetField: targetField,
+                    state: slicerState
+                  });
+                }
               } catch (err) {
                 // Skip slicers that don't support getSlicerState
               }
