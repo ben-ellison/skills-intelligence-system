@@ -150,15 +150,34 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: 'system',
-              content: 'You are a helpful AI assistant for apprenticeship training organizations.',
+              content: `You are an AI assistant for apprenticeship training organizations. You analyze data and provide structured insights.`,
             },
             {
               role: 'user',
-              content: fullPrompt,
+              content: `Analyze the following apprenticeship data and provide a structured summary.
+
+Return your response as a JSON object with this EXACT structure:
+{
+  "summaryOfInformation": ["bullet point 1", "bullet point 2", ...],
+  "keyRisks": ["risk 1", "risk 2", ...],
+  "positiveIndicators": ["indicator 1", "indicator 2", ...],
+  "summaryAndRecommendations": "A paragraph with rich text recommendations"
+}
+
+Rules:
+- summaryOfInformation, keyRisks, and positiveIndicators must be arrays of strings
+- Each array item should be concise (one line)
+- summaryAndRecommendations is a single paragraph string
+- Do NOT include markdown in the JSON values
+- Focus on actionable insights from the data
+
+Data to analyze:
+${fullPrompt}`,
             },
           ],
-          max_tokens: 1000,
+          max_tokens: 2000,
           temperature: 0.7,
+          response_format: { type: "json_object" }
         }),
       });
     } catch (fetchError: any) {
@@ -191,14 +210,58 @@ export async function POST(request: NextRequest) {
     }
 
     const azureData = await azureResponse.json();
-    const summaryText = azureData.choices[0]?.message?.content;
+    const rawContent = azureData.choices[0]?.message?.content;
     const tokensUsed = azureData.usage?.total_tokens || 0;
 
-    if (!summaryText) {
+    if (!rawContent) {
       return NextResponse.json(
         { error: 'No summary generated' },
         { status: 500 }
       );
+    }
+
+    // Parse JSON response and format as markdown
+    let summaryText;
+    try {
+      const structured = JSON.parse(rawContent);
+
+      // Format as proper markdown
+      const sections: string[] = [];
+
+      if (structured.summaryOfInformation && Array.isArray(structured.summaryOfInformation)) {
+        sections.push('## Summary of Information\n');
+        sections.push(structured.summaryOfInformation.map((item: string) => `- ${item}`).join('\n'));
+        sections.push('\n');
+      }
+
+      if (structured.keyRisks && Array.isArray(structured.keyRisks)) {
+        sections.push('## Key Risks\n');
+        sections.push(structured.keyRisks.map((item: string) => `- ${item}`).join('\n'));
+        sections.push('\n');
+      }
+
+      if (structured.positiveIndicators && Array.isArray(structured.positiveIndicators)) {
+        sections.push('## Positive Indicators\n');
+        sections.push(structured.positiveIndicators.map((item: string) => `- ${item}`).join('\n'));
+        sections.push('\n');
+      }
+
+      if (structured.summaryAndRecommendations) {
+        sections.push('## Summary and Recommendations\n');
+        sections.push(structured.summaryAndRecommendations);
+      }
+
+      summaryText = sections.join('\n');
+
+      console.log('[Generate Summary] Formatted markdown summary:', {
+        length: summaryText.length,
+        hasBullets: summaryText.includes('- '),
+        hasHeadings: summaryText.includes('## ')
+      });
+    } catch (parseError) {
+      console.error('[Generate Summary] Failed to parse JSON response:', parseError);
+      // Fallback to raw content if parsing fails
+      summaryText = rawContent;
     }
 
     // Get user's organization
