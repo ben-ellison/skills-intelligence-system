@@ -6,9 +6,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('[hide-tab API] Request received');
+    console.log('[hide-tab API] params before await:', params);
+
     const supabase = await createClient();
-    const { id: organizationId } = await params;
+    const awaitedParams = await params;
+    console.log('[hide-tab API] params after await:', awaitedParams);
+
+    const { id: organizationId } = awaitedParams;
+    console.log('[hide-tab API] organizationId extracted:', organizationId);
+
     const body = await request.json();
+    console.log('[hide-tab API] Request body:', body);
     const { moduleId, moduleName, tabName, globalTabId } = body;
 
     // Verify organization exists
