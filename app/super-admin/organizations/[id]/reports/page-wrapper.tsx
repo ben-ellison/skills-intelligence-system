@@ -454,7 +454,7 @@ export default function ManageReportsWrapper({
                     ) : null;
 
                     // Check if this tab is explicitly hidden
-                    const isHidden = orgTab !== null && orgTab.override_mode === 'hide' && orgTab.is_active === false;
+                    const isHidden = orgTab?.override_mode === 'hide' && orgTab?.is_active === false;
 
                     // Check if this tab's report is deployed to the organization
                     const reportDeployed = tab.report_id && deployedReports.some((dr: any) =>
