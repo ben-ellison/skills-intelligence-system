@@ -165,20 +165,32 @@ export default function PowerBIReport({
   // Setup filter change listener using polling since filtersApplied event doesn't fire with persistentFiltersEnabled
   const setupFilterListener = (report: pbi.Report) => {
     let lastFilters: string | null = null;
+    let pollCount = 0;
+
+    console.log('[Filter Persistence] Starting filter polling...');
 
     // Poll for filter changes every 2 seconds
     const pollInterval = setInterval(async () => {
       try {
+        pollCount++;
         const currentFilters = await report.getFilters();
         const currentFiltersStr = JSON.stringify(currentFilters);
 
+        // Log every 5th poll to show it's working
+        if (pollCount % 5 === 0) {
+          console.log('[Filter Persistence] Poll check #' + pollCount + ', filters count:', currentFilters.length);
+        }
+
         // Only save if filters actually changed
-        if (currentFiltersStr !== lastFilters && currentFilters.length > 0) {
-          console.log('[Filter Persistence] Filters changed, saving...');
+        if (currentFiltersStr !== lastFilters) {
+          if (currentFilters.length > 0) {
+            console.log('[Filter Persistence] Filters changed, saving...', currentFilters);
+            saveCurrentFilters(report);
+          }
           lastFilters = currentFiltersStr;
-          saveCurrentFilters(report);
         }
       } catch (error) {
+        console.error('[Filter Persistence] Polling error:', error);
         // Report might be disposed, stop polling
         clearInterval(pollInterval);
       }
