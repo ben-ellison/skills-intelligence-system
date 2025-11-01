@@ -397,13 +397,6 @@ export default function PowerBIReport({
           navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
           persistentFiltersEnabled: false,
-          // Performance optimizations
-          layoutType: models.LayoutType.Custom,
-          customLayout: {
-            displayOption: models.DisplayOption.FitToWidth,
-          },
-          // Reduce initial load by not loading all pages
-          preloadPages: false,
         },
       };
 
