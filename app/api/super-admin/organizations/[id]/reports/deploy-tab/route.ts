@@ -173,60 +173,93 @@ export async function POST(
 
     console.log('[deploy-tab] Final orgModuleId:', orgModuleId);
 
-    // Step 3: Check if there's an existing tenant_module_tabs entry (including hidden ones)
-    const { data: existingTab } = await supabase
-      .from('tenant_module_tabs')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('module_id', orgModuleId)
+    // Step 3: Check if this tab exists as a global tab
+    const { data: globalTab } = await supabase
+      .from('module_tabs')
+      .select('id')
+      .eq('module_name', moduleName)
       .eq('tab_name', tabName)
+      .eq('is_active', true)
       .maybeSingle();
 
-    let tenantTab;
+    console.log('[deploy-tab] Global tab check:', globalTab ? 'EXISTS' : 'NOT FOUND');
 
-    if (existingTab) {
-      // Update existing tab (might be a hidden tab we're re-enabling)
-      const { data: updatedTab, error: updateError } = await supabase
+    let tenantTab = null;
+
+    if (globalTab) {
+      // This tab exists as a global tab, so DON'T create tenant_module_tabs
+      // The global tab + organization_powerbi_reports mapping is sufficient
+      console.log('[deploy-tab] Tab exists globally - skipping tenant_module_tabs creation');
+
+      // Delete any existing tenant_module_tabs entries that might be duplicates
+      const { error: deleteError } = await supabase
         .from('tenant_module_tabs')
-        .update({
-          sort_order: sortOrder || 0,
-          page_name: pageName,
-          organization_report_id: orgReportId,
-          override_mode: 'add',
-          is_active: true,
-          hidden_global_tab_id: null, // Clear any hidden reference
-        })
-        .eq('id', existingTab.id)
-        .select()
-        .single();
+        .delete()
+        .eq('organization_id', organizationId)
+        .eq('module_id', orgModuleId)
+        .eq('tab_name', tabName)
+        .eq('override_mode', 'add'); // Only delete 'add' mode, keep 'hide' mode
 
-      if (updateError) {
-        console.error('Error updating tenant tab:', updateError);
-        throw new Error(`Failed to update tab configuration: ${updateError.message}`);
+      if (deleteError) {
+        console.warn('[deploy-tab] Error deleting duplicate tenant tabs:', deleteError);
       }
-      tenantTab = updatedTab;
     } else {
-      // Create new tenant_module_tabs entry
-      const { data: newTab, error: tabError } = await supabase
-        .from('tenant_module_tabs')
-        .insert({
-          organization_id: organizationId,
-          module_id: orgModuleId,
-          tab_name: tabName,
-          sort_order: sortOrder || 0,
-          page_name: pageName,
-          organization_report_id: orgReportId,
-          override_mode: 'add',
-          is_active: true,
-        })
-        .select()
-        .single();
+      // This is a custom tab that doesn't exist globally
+      // Create or update tenant_module_tabs entry
+      console.log('[deploy-tab] Custom tab - creating tenant_module_tabs entry');
 
-      if (tabError) {
-        console.error('Error creating tenant tab:', tabError);
-        throw new Error(`Failed to create tab configuration: ${tabError.message}`);
+      const { data: existingTab } = await supabase
+        .from('tenant_module_tabs')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('module_id', orgModuleId)
+        .eq('tab_name', tabName)
+        .maybeSingle();
+
+      if (existingTab) {
+        // Update existing custom tab
+        const { data: updatedTab, error: updateError } = await supabase
+          .from('tenant_module_tabs')
+          .update({
+            sort_order: sortOrder || 0,
+            page_name: pageName,
+            organization_report_id: orgReportId,
+            override_mode: 'add',
+            is_active: true,
+            hidden_global_tab_id: null,
+          })
+          .eq('id', existingTab.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating tenant tab:', updateError);
+          throw new Error(`Failed to update tab configuration: ${updateError.message}`);
+        }
+        tenantTab = updatedTab;
+      } else {
+        // Create new custom tenant tab
+        const { data: newTab, error: tabError } = await supabase
+          .from('tenant_module_tabs')
+          .insert({
+            organization_id: organizationId,
+            module_id: orgModuleId,
+            tab_name: tabName,
+            sort_order: sortOrder || 0,
+            page_name: pageName,
+            organization_report_id: orgReportId,
+            override_mode: 'add',
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (tabError) {
+          console.error('Error creating tenant tab:', tabError);
+          throw new Error(`Failed to create tab configuration: ${tabError.message}`);
+        }
+        tenantTab = newTab;
       }
-      tenantTab = newTab;
     }
 
     return NextResponse.json({
