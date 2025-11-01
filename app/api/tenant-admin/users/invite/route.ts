@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendUserInvitationEmail } from '@/lib/email';
+import { getOrganizationId } from '@/lib/organization-context';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,17 +13,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is tenant admin
-    if (!session.user.isTenantAdmin) {
+    // Verify user is tenant admin or super admin
+    if (!session.user.isTenantAdmin && !session.user.isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden - Tenant Admin access required' }, { status: 403 });
     }
 
     const supabase = createAdminClient();
 
-    // Get the user's organization and admin flags
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get the user's admin flags
     const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('id, organization_id, is_tenant_admin, can_create_any_user')
+      .select('id, is_tenant_admin, can_create_any_user')
       .eq('email', session.user.email)
       .single();
 
@@ -89,7 +97,7 @@ export async function POST(request: NextRequest) {
       .insert({
         email,
         name: name || null,
-        organization_id: currentUser.organization_id,
+        organization_id: organizationId,
         is_tenant_admin: isTenantAdmin || false,
         can_create_users: canCreateUsers || false,
         can_create_any_user: canCreateAnyUser || false,
@@ -125,7 +133,7 @@ export async function POST(request: NextRequest) {
     const { data: organization } = await supabase
       .from('organizations')
       .select('name')
-      .eq('id', currentUser.organization_id)
+      .eq('id', organizationId)
       .single();
 
     // Send invitation email

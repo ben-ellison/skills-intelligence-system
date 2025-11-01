@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // GET /api/tenant/organization/settings
 // Get organization settings for the current tenant admin
@@ -15,35 +16,35 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get user's organization
-    const { data: user, error: userError } = await supabase
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get user's permissions
+    const { data: user } = await supabase
       .from('users')
-      .select('organization_id, is_tenant_admin')
+      .select('is_tenant_admin')
       .eq('email', session.user.email)
       .single();
 
-    if (userError || !user?.organization_id) {
-      return NextResponse.json(
-        { error: 'User not associated with an organization' },
-        { status: 404 }
-      );
-    }
-
-    if (!user.is_tenant_admin && !session.user.isSuperAdmin) {
+    if (!user?.is_tenant_admin && !session.user.isSuperAdmin) {
       return NextResponse.json(
         { error: 'Only tenant admins can view organization settings' },
         { status: 403 }
       );
     }
 
-    const { data: organization, error: orgError } = await supabase
+    const { data: organization, error: fetchError } = await supabase
       .from('organizations')
       .select('id, name, powerbi_workspace_id')
-      .eq('id', user.organization_id)
+      .eq('id', organizationId)
       .single();
 
-    if (orgError) {
-      console.error('Error fetching organization:', orgError);
+    if (fetchError) {
+      console.error('Error fetching organization:', fetchError);
       return NextResponse.json(
         { error: 'Failed to fetch organization' },
         { status: 500 }
@@ -72,21 +73,21 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get user's organization
-    const { data: user, error: userError } = await supabase
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get user's permissions
+    const { data: user } = await supabase
       .from('users')
-      .select('organization_id, is_tenant_admin')
+      .select('is_tenant_admin')
       .eq('email', session.user.email)
       .single();
 
-    if (userError || !user?.organization_id) {
-      return NextResponse.json(
-        { error: 'User not associated with an organization' },
-        { status: 404 }
-      );
-    }
-
-    if (!user.is_tenant_admin && !session.user.isSuperAdmin) {
+    if (!user?.is_tenant_admin && !session.user.isSuperAdmin) {
       return NextResponse.json(
         { error: 'Only tenant admins can update organization settings' },
         { status: 403 }
@@ -104,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     const { data: organization, error: updateError } = await supabase
       .from('organizations')
       .update(updateData)
-      .eq('id', user.organization_id)
+      .eq('id', organizationId)
       .select('id, name, powerbi_workspace_id')
       .single();
 

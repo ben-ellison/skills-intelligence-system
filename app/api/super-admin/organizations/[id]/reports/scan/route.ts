@@ -9,11 +9,21 @@ async function getPowerBIAccessToken() {
   const clientSecret = process.env.POWERBI_CLIENT_SECRET;
   const tenantId = process.env.POWERBI_TENANT_ID;
 
+  console.log('[PowerBI Auth] Checking credentials...');
+  console.log('[PowerBI Auth] Client ID present:', !!clientId);
+  console.log('[PowerBI Auth] Client Secret present:', !!clientSecret);
+  console.log('[PowerBI Auth] Tenant ID present:', !!tenantId);
+
   if (!clientId || !clientSecret || !tenantId) {
-    throw new Error('PowerBI credentials not configured');
+    throw new Error('PowerBI credentials not configured. Missing: ' +
+      (!clientId ? 'POWERBI_CLIENT_ID ' : '') +
+      (!clientSecret ? 'POWERBI_CLIENT_SECRET ' : '') +
+      (!tenantId ? 'POWERBI_TENANT_ID' : ''));
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  console.log('[PowerBI Auth] Requesting token from:', tokenUrl);
+
   const tokenParams = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: clientId,
@@ -29,12 +39,16 @@ async function getPowerBIAccessToken() {
     body: tokenParams.toString(),
   });
 
+  console.log('[PowerBI Auth] Token response status:', tokenResponse.status);
+
   if (!tokenResponse.ok) {
     const error = await tokenResponse.text();
+    console.error('[PowerBI Auth] Failed to get token:', error);
     throw new Error(`Failed to get Azure AD token: ${error}`);
   }
 
   const { access_token } = await tokenResponse.json();
+  console.log('[PowerBI Auth] Successfully obtained access token');
   return access_token;
 }
 
@@ -79,21 +93,38 @@ export async function POST(
     }
 
     // Get PowerBI access token
+    console.log('[Scan Workspace] Getting PowerBI access token...');
     const accessToken = await getPowerBIAccessToken();
+    console.log('[Scan Workspace] Successfully obtained access token');
 
     // Fetch all reports from the organization's workspace
     const reportsUrl = `https://api.powerbi.com/v1.0/myorg/groups/${organization.powerbi_workspace_id}/reports`;
+    console.log('[Scan Workspace] Fetching reports from:', reportsUrl);
+    console.log('[Scan Workspace] Workspace ID:', organization.powerbi_workspace_id);
+    console.log('[Scan Workspace] Workspace Name:', organization.powerbi_workspace_name);
+
     const reportsResponse = await fetch(reportsUrl, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
 
+    console.log('[Scan Workspace] PowerBI API response status:', reportsResponse.status);
+
     if (!reportsResponse.ok) {
       const error = await reportsResponse.text();
-      console.error('Failed to fetch workspace reports:', error);
+      console.error('[Scan Workspace] PowerBI API Error Response:', error);
+      console.error('[Scan Workspace] Response Status:', reportsResponse.status);
+      console.error('[Scan Workspace] Response StatusText:', reportsResponse.statusText);
       return NextResponse.json(
-        { error: 'Failed to fetch reports from PowerBI workspace', details: error },
+        {
+          error: 'Failed to fetch reports from PowerBI workspace',
+          details: error,
+          status: reportsResponse.status,
+          statusText: reportsResponse.statusText,
+          workspaceId: organization.powerbi_workspace_id,
+          workspaceName: organization.powerbi_workspace_name
+        },
         { status: 500 }
       );
     }
@@ -181,16 +212,6 @@ export async function POST(
 
     const orgModulesMap = new Map(
       existingOrgModules?.map(m => [m.name, m]) || []
-    );
-
-    // Get existing tenant tabs
-    const { data: existingTenantTabs } = await supabase
-      .from('tenant_module_tabs')
-      .select('module_id, tab_name')
-      .eq('organization_id', organizationId);
-
-    const existingTabsSet = new Set(
-      existingTenantTabs?.map(t => `${t.module_id}:${t.tab_name}`) || []
     );
 
     // Match workspace reports+pages to global module tabs
@@ -331,8 +352,9 @@ export async function POST(
           continue;
         }
 
-        // Step 3: Create tenant tab configuration
-        const tabKey = `${orgModuleId}:${match.tabName}`;
+        // Step 3: Mark as deployed (no need to create tenant_module_tabs)
+        // Global tabs + organization_powerbi_reports are sufficient
+        // Creating tenant tabs with override_mode='add' causes duplicates!
         const tabInfo = {
           module: match.moduleName,
           tab: match.tabName,
@@ -340,28 +362,7 @@ export async function POST(
           page: match.pageDisplayName,
         };
 
-        if (!existingTabsSet.has(tabKey)) {
-          const { data: tenantTab, error: tabError } = await supabase
-            .from('tenant_module_tabs')
-            .insert({
-              organization_id: organizationId,
-              module_id: orgModuleId,
-              tab_name: match.tabName,
-              sort_order: match.sortOrder,
-              page_name: match.pageDisplayName, // Use display name instead of internal page ID
-              organization_report_id: orgReportId,
-              override_mode: 'add',
-              is_active: true,
-            })
-            .select()
-            .single();
-
-          if (tabError) throw tabError;
-          deployed.push(tabInfo);
-        } else {
-          // Tab already exists - add to alreadyDeployed list
-          alreadyDeployed.push(tabInfo);
-        }
+        deployed.push(tabInfo);
       } catch (err: any) {
         console.error('Error deploying tab configuration:', match.tabName, err);
         failed.push({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createClient } from '@supabase/supabase-js';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // GET /api/tenant/modules/[moduleName]/reports
 // Get all reports for a specific module that the user has access to
@@ -23,14 +24,21 @@ export async function GET(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Get user's organization and role (use email instead of sub)
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get user's role (use email instead of sub)
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('organization_id, role_id')
+      .select('role_id')
       .eq('email', session.user.email)
       .single();
 
-    if (userError || !user?.organization_id || !user?.role_id) {
+    if (userError || !user?.role_id) {
       return NextResponse.json(
         { error: 'User not properly configured' },
         { status: 404 }
@@ -41,7 +49,7 @@ export async function GET(
     const { data: module, error: moduleError } = await supabase
       .from('organization_modules')
       .select('id')
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', organizationId)
       .eq('name', moduleName)
       .eq('is_active', true)
       .single();
@@ -57,7 +65,7 @@ export async function GET(
     // This is a complex query that joins multiple tables
     const { data: reports, error: reportsError } = await supabase
       .rpc('get_user_reports_for_module', {
-        p_organization_id: user.organization_id,
+        p_organization_id: organizationId,
         p_module_id: module.id,
         p_role_id: user.role_id,
       });
@@ -97,7 +105,7 @@ export async function GET(
       const { data: orgReports, error: orgReportsError } = await supabase
         .from('organization_powerbi_reports')
         .select('id, powerbi_report_id, custom_display_name, powerbi_workspace_id')
-        .eq('organization_id', user.organization_id)
+        .eq('organization_id', organizationId)
         .in('template_report_id', allowedReportIds)
         .eq('deployment_status', 'active');
 

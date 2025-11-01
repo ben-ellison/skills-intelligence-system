@@ -58,15 +58,27 @@ export const authOptions: NextAuthOptions = {
         // Add auth0 user ID to session
         session.user.sub = token.sub as string;
 
+        console.log('[Session Callback] Processing session for auth0_user_id:', token.sub);
+        console.log('[Session Callback] Token email:', token.email);
+
         // Enrich session with user data from Supabase
         const supabase = createAdminClient();
 
         try {
-          const { data: user } = await supabase
+          const { data: user, error: userError } = await supabase
             .from('users')
-            .select('id, email, organization_id, is_super_admin, is_tenant_admin, primary_role_id')
+            .select('id, email, organization_id, is_super_admin, is_tenant_admin, primary_role_id, status')
             .eq('auth0_user_id', token.sub)
             .single();
+
+          console.log('[Session Callback] User lookup result:', {
+            found: !!user,
+            error: userError?.message,
+            userId: user?.id,
+            email: user?.email,
+            isSuperAdmin: user?.is_super_admin,
+            status: user?.status
+          });
 
           if (user) {
             session.user.id = user.id;
@@ -77,14 +89,18 @@ export const authOptions: NextAuthOptions = {
             session.user.roleId = user.primary_role_id;
             session.user.role = user.is_super_admin ? 'super-admin' : (user.is_tenant_admin ? 'tenant-admin' : 'user');
 
+            console.log('[Session Callback] ✅ Session enriched successfully. isSuperAdmin:', user.is_super_admin);
+
             // Update last_login_at timestamp (fire and forget)
             void supabase
               .from('users')
               .update({ last_login_at: new Date().toISOString() })
               .eq('id', user.id);
+          } else {
+            console.error('[Session Callback] ❌ User not found in database for auth0_user_id:', token.sub);
           }
         } catch (error) {
-          console.error('Error enriching session:', error);
+          console.error('[Session Callback] Error enriching session:', error);
         }
       }
       return session;

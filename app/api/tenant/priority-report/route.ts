@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // GET /api/tenant/priority-report
 // Get the user's role-based Immediate Priorities report
@@ -13,6 +14,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
     const supabase = createAdminClient();
 
     // Get user with their primary role
@@ -21,7 +29,6 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         email,
-        organization_id,
         primary_role_id,
         global_roles:primary_role_id (
           id,
@@ -68,11 +75,11 @@ export async function GET(request: NextRequest) {
 
     const templateReport = role.powerbi_reports;
 
-    // Find the deployed instance of this report for the user's organization
+    // Find the deployed instance of this report for the organization (based on subdomain)
     const { data: deployedReport, error: deployedError } = await supabase
       .from('organization_powerbi_reports')
       .select('id, powerbi_report_id, powerbi_workspace_id, name, deployment_status')
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', organizationId)
       .eq('template_report_id', templateReport.id)
       .eq('deployment_status', 'active')
       .single();

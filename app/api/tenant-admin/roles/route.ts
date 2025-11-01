@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is tenant admin
-    if (!session.user.isTenantAdmin) {
+    // Verify user is tenant admin or super admin
+    if (!session.user.isTenantAdmin && !session.user.isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden - Tenant Admin access required' }, { status: 403 });
     }
 

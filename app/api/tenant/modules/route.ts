@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // GET /api/tenant/modules
 // Get the effective modules for the current user's organization
@@ -15,14 +16,21 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get user's organization and ID
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get user's ID
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, organization_id')
+      .select('id')
       .eq('email', session.user.email)
       .single();
 
-    if (userError || !user?.organization_id) {
+    if (userError || !user?.id) {
       return NextResponse.json(
         { error: 'User not properly configured' },
         { status: 404 }
@@ -32,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Get all organization modules
     const { data: orgModules, error: modulesError } = await supabase
       .rpc('get_modules_for_organization', {
-        p_organization_id: user.organization_id,
+        p_organization_id: organizationId,
       });
 
     if (modulesError) {

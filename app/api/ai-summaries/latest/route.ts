@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +14,17 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get user's organization
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get user's ID
     const { data: user } = await supabase
       .from('users')
-      .select('id, organization_id')
+      .select('id')
       .eq('email', session.user.email)
       .single();
 
@@ -26,14 +34,14 @@ export async function GET(request: NextRequest) {
 
     console.log('[Latest Summary] Fetching for user:', {
       userId: user.id,
-      organizationId: user.organization_id
+      organizationId: organizationId
     });
 
     // Get latest summary for this user's organization
     const { data: summary, error } = await supabase
       .from('ai_summaries')
       .select('*')
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', organizationId)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)

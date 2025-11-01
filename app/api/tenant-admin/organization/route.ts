@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,33 +12,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is tenant admin
-    if (!session.user.isTenantAdmin) {
+    // Verify user is tenant admin or super admin
+    if (!session.user.isTenantAdmin && !session.user.isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden - Tenant Admin access required' }, { status: 403 });
     }
 
     const supabase = createAdminClient();
 
-    // Get the user's organization
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('email', session.user.email)
-      .single();
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
 
-    if (userError || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
     }
 
     // Get organization details
-    const { data: organization, error: orgError } = await supabase
+    const { data: organization, error: fetchOrgError } = await supabase
       .from('organizations')
       .select('*')
-      .eq('id', user.organization_id)
+      .eq('id', organizationId)
       .single();
 
-    if (orgError) {
-      console.error('Error fetching organization:', orgError);
+    if (fetchOrgError) {
+      console.error('Error fetching organization:', fetchOrgError);
       return NextResponse.json({ error: 'Failed to fetch organization' }, { status: 500 });
     }
 
@@ -56,22 +53,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is tenant admin
-    if (!session.user.isTenantAdmin) {
+    // Verify user is tenant admin or super admin
+    if (!session.user.isTenantAdmin && !session.user.isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden - Tenant Admin access required' }, { status: 403 });
     }
 
     const supabase = createAdminClient();
 
-    // Get the user's organization
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('email', session.user.email)
-      .single();
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
 
-    if (userError || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
     }
 
     // Parse request body
@@ -87,7 +80,7 @@ export async function PATCH(request: NextRequest) {
         billing_contact_name: billing_contact_name || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', user.organization_id);
+      .eq('id', organizationId);
 
     if (updateError) {
       console.error('Error updating organization:', updateError);

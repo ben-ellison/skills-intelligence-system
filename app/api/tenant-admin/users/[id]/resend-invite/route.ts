@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendUserInvitationEmail } from '@/lib/email';
+import { getOrganizationId } from '@/lib/organization-context';
 
 export async function POST(
   request: NextRequest,
@@ -15,8 +16,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is tenant admin
-    if (!session.user.isTenantAdmin) {
+    // Verify user is tenant admin or super admin
+    if (!session.user.isTenantAdmin && !session.user.isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden - Tenant Admin access required' }, { status: 403 });
     }
 
@@ -24,15 +25,11 @@ export async function POST(
     const awaitedParams = await params;
     const userId = awaitedParams.id;
 
-    // Get the current user's organization
-    const { data: currentUser, error: currentUserError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('email', session.user.email)
-      .single();
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
 
-    if (currentUserError || !currentUser) {
-      return NextResponse.json({ error: 'Current user not found' }, { status: 404 });
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
     }
 
     // Get the user to resend invite to
@@ -47,7 +44,7 @@ export async function POST(
     }
 
     // Verify user belongs to same organization
-    if (user.organization_id !== currentUser.organization_id) {
+    if (user.organization_id !== organizationId) {
       return NextResponse.json({ error: 'Unauthorized - User not in your organization' }, { status: 403 });
     }
 

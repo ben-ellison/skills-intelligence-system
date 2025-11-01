@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { authOptions } from '@/lib/auth/auth-options';
 
@@ -13,8 +14,13 @@ export default async function DashboardPage() {
   const isSuperAdmin = session.user?.isSuperAdmin || false;
   const isTenantAdmin = session.user?.isTenantAdmin || false;
 
-  // Redirect super admins to super-admin portal
-  if (isSuperAdmin) {
+  // Get subdomain to check if we're on a tenant site
+  const headersList = await headers();
+  const subdomain = headersList.get('x-subdomain');
+
+  // Redirect super admins to super-admin portal ONLY if on main domain (no subdomain)
+  // Super admins accessing tenant subdomains should go to Summary like regular users
+  if (isSuperAdmin && !subdomain) {
     redirect('/super-admin');
   }
 

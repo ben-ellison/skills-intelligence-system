@@ -219,51 +219,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Automatically add ben.ellison@edvanceiq.co.uk as super admin to this organization
-    const superAdminEmail = 'ben.ellison@edvanceiq.co.uk';
-    const { data: superAdminUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', superAdminEmail)
-      .single();
-
-    if (superAdminUser) {
-      // Super admin exists - update to also belong to this org
-      const { error: superAdminUpdateError } = await supabase
-        .from('users')
-        .update({
-          organization_id: newOrg.id,
-          is_super_admin: true,
-          is_tenant_admin: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', superAdminUser.id);
-
-      if (superAdminUpdateError) {
-        console.error('Error adding super admin to organization:', superAdminUpdateError);
-      } else {
-        console.log(`Successfully added super admin ${superAdminEmail} to organization ${newOrg.id}`);
-      }
-    } else {
-      // Create super admin user
-      const { error: superAdminCreateError } = await supabase
-        .from('users')
-        .insert({
-          email: superAdminEmail,
-          organization_id: newOrg.id,
-          is_super_admin: true,
-          is_tenant_admin: true,
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (superAdminCreateError) {
-        console.error('Error creating super admin user:', superAdminCreateError);
-      } else {
-        console.log(`Successfully created super admin user ${superAdminEmail} for organization ${newOrg.id}`);
-      }
-    }
+    // Super admins already have access to all organizations via is_super_admin flag
+    // No need to add them to each organization's user list
+    console.log('Super admins can access this organization via their is_super_admin flag');
 
     // Tenant admins can be added later through the Users interface
 

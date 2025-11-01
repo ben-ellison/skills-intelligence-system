@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // POST /api/powerbi/embed-token
 // Get PowerBI embed token for a specific report
@@ -22,28 +23,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's organization from database
-    const supabase = createAdminClient();
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
 
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('email', session.user.email)
-      .single();
-
-    if (userError || !user?.organization_id) {
-      console.error('Failed to get user organization:', userError);
-      return NextResponse.json(
-        { error: 'User not associated with an organization' },
-        { status: 404 }
-      );
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
     }
+
+    const supabase = createAdminClient();
 
     // Get the organization's deployed report instance
     const { data: orgReport, error: orgReportError } = await supabase
       .from('organization_powerbi_reports')
       .select('powerbi_report_id, powerbi_workspace_id, deployment_status, name')
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', organizationId)
       .eq('template_report_id', templateReportId)
       .eq('deployment_status', 'active')
       .single();
@@ -63,7 +56,7 @@ export async function POST(request: NextRequest) {
       templateReportId,
       reportId,
       workspaceId,
-      organizationId: user.organization_id,
+      organizationId,
       reportName: orgReport.name
     });
 

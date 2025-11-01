@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 // GET /api/tenant/powerbi-data
 // Export data from PowerBI report based on AI prompt configuration
@@ -18,16 +19,23 @@ export async function GET(request: NextRequest) {
     console.log('[PowerBI Data] User email:', session.user.email);
     const supabase = createAdminClient();
 
+    // Get organization ID based on subdomain
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
     // Get user info
     const { data: user } = await supabase
       .from('users')
-      .select('id, email, organization_id, primary_role_id')
+      .select('id, email, primary_role_id')
       .eq('email', session.user.email)
       .single();
 
     console.log('[PowerBI Data] User found:', {
       userId: user?.id,
-      orgId: user?.organization_id,
+      orgId: organizationId,
       roleId: user?.primary_role_id
     });
 
@@ -75,7 +83,7 @@ export async function GET(request: NextRequest) {
     const { data: deployedReport } = await supabase
       .from('organization_powerbi_reports')
       .select('powerbi_report_id, powerbi_workspace_id')
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', organizationId)
       .eq('template_report_id', templateReportId)
       .eq('deployment_status', 'active')
       .single();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOrganizationId } from '@/lib/organization-context';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,19 +14,27 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Get the current user's ID
+    // Get organization ID based on subdomain (for multi-tenant access)
+    const { organizationId, error: orgError } = await getOrganizationId(request, session.user.email);
+
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: orgError || 'Organization not found' }, { status: 404 });
+    }
+
+    // Get the current user's ID from the correct organization
     const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id, is_tenant_admin')
       .eq('email', session.user.email)
+      .eq('organization_id', organizationId)
       .single();
 
     if (userError || !currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // If Tenant Admin, return all active roles
-    if (currentUser.is_tenant_admin) {
+    // If Tenant Admin or Super Admin, return all active roles
+    if (currentUser.is_tenant_admin || session.user.isSuperAdmin) {
       const { data: roles, error: rolesError } = await supabase
         .from('global_roles')
         .select('id, name, display_name, description, role_category, role_level')
