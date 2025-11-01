@@ -396,7 +396,14 @@ export default function PowerBIReport({
           },
           navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
-          persistentFiltersEnabled: false, // Disable PowerBI persistence, use custom slicer persistence
+          persistentFiltersEnabled: false,
+          // Performance optimizations
+          layoutType: models.LayoutType.Custom,
+          customLayout: {
+            displayOption: models.DisplayOption.FitToWidth,
+          },
+          // Reduce initial load by not loading all pages
+          preloadPages: false,
         },
       };
 
@@ -450,7 +457,7 @@ export default function PowerBIReport({
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
           setReportLoading(false);
-        }, 1500); // Longer delay to ensure PowerBI logo is completely gone
+        }, 500); // Shorter delay for faster perceived load time
       });
 
       report.on('error', (event: any) => {
