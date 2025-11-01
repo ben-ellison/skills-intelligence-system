@@ -131,16 +131,18 @@ export default function PowerBIReport({
         console.log('[Filter Persistence] Restoring', savedSlicers.length, 'global slicer states');
 
         const restorePromise = (async () => {
+          // OPTIMIZATION: Only work with active page, not all pages
           const pages = await report.getPages();
+          const activePage = pages.find((p: any) => p.isActive);
 
           // Apply saved slicer states by matching target fields
           for (const savedSlicer of savedSlicers) {
             let restored = false;
 
-            // Try to find matching slicer on any page
-            for (const page of pages) {
+            // OPTIMIZATION: Only check active page for performance
+            if (activePage) {
               try {
-                const visuals = await page.getVisuals();
+                const visuals = await activePage.getVisuals();
 
                 for (const visual of visuals) {
                   if (visual.type === 'slicer') {
@@ -173,10 +175,8 @@ export default function PowerBIReport({
                     }
                   }
                 }
-
-                if (restored) break;
               } catch (err) {
-                // Skip pages that fail
+                // Skip errors on this page
               }
             }
           }
@@ -195,12 +195,14 @@ export default function PowerBIReport({
   // Save current slicer state to localStorage - use GLOBAL key
   const saveCurrentFilters = async (report: pbi.Report) => {
     try {
+      // OPTIMIZATION: Only get slicers from active page
       const pages = await report.getPages();
+      const activePage = pages.find((p: any) => p.isActive);
       const slicerStates: any[] = [];
 
-      // Get slicer state from all pages
-      for (const page of pages) {
-        const visuals = await page.getVisuals();
+      // Get slicer state from active page only
+      if (activePage) {
+        const visuals = await activePage.getVisuals();
 
         for (const visual of visuals) {
           if (visual.type === 'slicer') {
@@ -257,12 +259,13 @@ export default function PowerBIReport({
       try {
         pollCount++;
 
-        // Get current slicer states
+        // OPTIMIZATION: Get current slicer states from active page only
         const pages = await report.getPages();
+        const activePage = pages.find((p: any) => p.isActive);
         const currentSlicers: any[] = [];
 
-        for (const page of pages) {
-          const visuals = await page.getVisuals();
+        if (activePage) {
+          const visuals = await activePage.getVisuals();
           for (const visual of visuals) {
             if (visual.type === 'slicer') {
               try {
@@ -411,10 +414,11 @@ export default function PowerBIReport({
         console.log('Report loaded!');
 
         try {
-          // TEMPORARILY DISABLED - slicer persistence is causing massive load time issues
-          // await loadSavedFilters(report);
-          // setupFilterListener(report);
-          console.log('[Filter Persistence] DISABLED - investigating performance issues');
+          // Load saved filters first
+          await loadSavedFilters(report);
+
+          // Setup filter change listener (only on active page, not all pages)
+          setupFilterListener(report);
 
           // If a specific page was requested, navigate to it
           if (pageName) {
@@ -435,17 +439,17 @@ export default function PowerBIReport({
       report.on('rendered', async () => {
         console.log('Report rendered!');
 
-        // TEMPORARILY DISABLED - slicer persistence is causing massive load time issues
-        // if (!(report as any).filterListenerSetup) {
-        //   try {
-        //     console.log('[Filter Persistence] Setting up on rendered event');
-        //     await loadSavedFilters(report);
-        //     setupFilterListener(report);
-        //     (report as any).filterListenerSetup = true;
-        //   } catch (err) {
-        //     console.error('[Filter Persistence] Setup error:', err);
-        //   }
-        // }
+        // Setup filter persistence on first render
+        if (!(report as any).filterListenerSetup) {
+          try {
+            console.log('[Filter Persistence] Setting up on rendered event');
+            await loadSavedFilters(report);
+            setupFilterListener(report);
+            (report as any).filterListenerSetup = true;
+          } catch (err) {
+            console.error('[Filter Persistence] Setup error:', err);
+          }
+        }
 
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
