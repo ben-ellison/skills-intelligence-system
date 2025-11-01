@@ -132,6 +132,10 @@ export async function POST(request: NextRequest) {
 
     // Create GoDaddy DNS CNAME record for subdomain
     try {
+      console.log(`[GoDaddy DNS] Creating CNAME record for ${subdomain}.skillsintelligencesystem.co.uk`);
+      console.log(`[GoDaddy DNS] API Key present: ${!!process.env.GODADDY_API_KEY}`);
+      console.log(`[GoDaddy DNS] API Secret present: ${!!process.env.GODADDY_API_SECRET}`);
+
       const godaddyResponse = await fetch(
         `https://api.godaddy.com/v1/domains/skillsintelligencesystem.co.uk/records/CNAME/${subdomain}`,
         {
@@ -147,15 +151,20 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      console.log(`[GoDaddy DNS] Response status: ${godaddyResponse.status}`);
+
       if (!godaddyResponse.ok) {
         const errorText = await godaddyResponse.text();
-        console.error('GoDaddy DNS creation failed:', errorText);
+        console.error(`[GoDaddy DNS] Creation failed with status ${godaddyResponse.status}:`, errorText);
         console.warn(`Organization created but DNS record creation failed for ${subdomain}.skillsintelligencesystem.co.uk`);
       } else {
-        console.log(`Successfully created DNS CNAME record for ${subdomain}.skillsintelligencesystem.co.uk`);
+        const responseData = await godaddyResponse.text();
+        console.log(`[GoDaddy DNS] Successfully created CNAME record for ${subdomain}.skillsintelligencesystem.co.uk`);
+        console.log(`[GoDaddy DNS] Response:`, responseData);
       }
-    } catch (dnsError) {
-      console.error('Error creating GoDaddy DNS record:', dnsError);
+    } catch (dnsError: any) {
+      console.error('[GoDaddy DNS] Exception creating record:', dnsError);
+      console.error('[GoDaddy DNS] Error message:', dnsError.message);
       console.warn('Organization created but DNS record creation failed. Domain can be configured manually.');
     }
 
