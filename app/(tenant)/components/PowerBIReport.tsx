@@ -129,12 +129,7 @@ export default function PowerBIReport({
 
       if (savedSlicersStr) {
         const savedSlicers = JSON.parse(savedSlicersStr);
-        console.log('[Filter Persistence] Attempting to restore slicer states:', savedSlicers);
-
-        // Set a timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Slicer restoration timeout')), 5000)
-        );
+        console.log('[Filter Persistence] Restoring', savedSlicers.length, 'slicer states for report:', reportId);
 
         const restorePromise = (async () => {
           const pages = await report.getPages();
@@ -183,15 +178,13 @@ export default function PowerBIReport({
           }
         })();
 
-        // Race between restoration and timeout
-        await Promise.race([restorePromise, timeoutPromise]);
+        await restorePromise;
+        console.log('[Filter Persistence] Restoration complete for report:', reportId);
+      } else {
+        console.log('[Filter Persistence] No saved slicers found for report:', reportId);
       }
     } catch (error) {
-      if (error instanceof Error && error.message === 'Slicer restoration timeout') {
-        console.warn('[Filter Persistence] Slicer restoration timed out - continuing without filters');
-      } else {
-        console.error('[Filter Persistence] Error loading slicer states:', error);
-      }
+      console.error('[Filter Persistence] Error loading slicer states:', error);
     }
   };
 
@@ -236,8 +229,13 @@ export default function PowerBIReport({
       const subdomain = window.location.hostname.split('.')[0];
       // Scope by both tenant AND report to prevent cross-report contamination
       const storageKey = `powerbi_slicers_${subdomain}_${reportId}`;
-      localStorage.setItem(storageKey, JSON.stringify(slicerStates));
-      console.log('[Filter Persistence] Slicer states saved for tenant and report:', subdomain, reportId, slicerStates);
+
+      if (slicerStates.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(slicerStates));
+        console.log(`[Filter Persistence] ✓ Saved ${slicerStates.length} slicer states for report:`, reportId, 'key:', storageKey);
+      } else {
+        console.log('[Filter Persistence] No slicer states to save (empty array)');
+      }
     } catch (error) {
       console.error('[Filter Persistence] Error saving slicer states:', error);
     }
