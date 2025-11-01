@@ -16,12 +16,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, subdomain, databaseSchemaId, lmsProviderId, englishMathsProviderId, crmProviderId, hrProviderId, powerbiWorkspaceId, powerbiWorkspaceName, billingEmail, billingContactName } = body;
+    const { name, subdomain, adminEmail, databaseSchemaId, lmsProviderId, englishMathsProviderId, crmProviderId, hrProviderId, powerbiWorkspaceId, powerbiWorkspaceName, billingEmail, billingContactName } = body;
 
     // Validate required fields
     if (!name || !subdomain) {
       return NextResponse.json(
         { error: 'Name and subdomain are required' },
+        { status: 400 }
+      );
+    }
+
+    // Admin email is required
+    if (!adminEmail) {
+      return NextResponse.json(
+        { error: 'Admin email is required' },
         { status: 400 }
       );
     }
@@ -210,44 +218,50 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Auto-assign current super admin user to the new organization
-    if (session.user?.email) {
+    // Create or update tenant admin user for the new organization
+    if (adminEmail) {
       // Check if user exists
       const { data: existingUser } = await supabase
         .from('users')
-        .select('id')
-        .eq('email', session.user.email)
+        .select('id, organization_id')
+        .eq('email', adminEmail)
         .single();
 
       if (existingUser) {
-        // Update user to add organization_id
+        // User exists - update to assign to this organization as tenant admin
         const { error: userUpdateError } = await supabase
           .from('users')
-          .update({ organization_id: newOrg.id, is_super_admin: true })
+          .update({
+            organization_id: newOrg.id,
+            is_tenant_admin: true,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', existingUser.id);
 
         if (userUpdateError) {
-          console.error('Error assigning super admin to organization:', userUpdateError);
-          console.warn('Organization created but super admin assignment failed.');
+          console.error('Error assigning tenant admin to organization:', userUpdateError);
+          console.warn(`Organization created but tenant admin assignment failed for ${adminEmail}`);
         } else {
-          console.log(`Successfully assigned super admin ${session.user.email} to organization ${newOrg.id}`);
+          console.log(`Successfully assigned tenant admin ${adminEmail} to organization ${newOrg.id}`);
         }
       } else {
-        // Create new user record
+        // User doesn't exist - create as tenant admin with 'invited' status
         const { error: userCreateError } = await supabase
           .from('users')
           .insert({
-            email: session.user.email,
+            email: adminEmail,
             organization_id: newOrg.id,
-            is_super_admin: true,
             is_tenant_admin: true,
+            status: 'invited',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           });
 
         if (userCreateError) {
-          console.error('Error creating super admin user:', userCreateError);
-          console.warn('Organization created but super admin user creation failed.');
+          console.error('Error creating tenant admin user:', userCreateError);
+          console.warn(`Organization created but tenant admin user creation failed for ${adminEmail}`);
         } else {
-          console.log(`Successfully created super admin user ${session.user.email} for organization ${newOrg.id}`);
+          console.log(`Successfully created tenant admin user ${adminEmail} for organization ${newOrg.id}`);
         }
       }
     }
