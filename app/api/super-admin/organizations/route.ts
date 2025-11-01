@@ -227,8 +227,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create or update tenant admin user for the new organization
-    if (adminEmail) {
+    // Add ben.ellison@edvanceiq.co.uk as super admin to EVERY organization
+    const superAdminEmail = 'ben.ellison@edvanceiq.co.uk';
+    const { data: superAdminUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', superAdminEmail)
+      .single();
+
+    if (superAdminUser) {
+      // Super admin exists - update to also belong to this org
+      const { error: superAdminUpdateError } = await supabase
+        .from('users')
+        .update({
+          organization_id: newOrg.id,
+          is_super_admin: true,
+          is_tenant_admin: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', superAdminUser.id);
+
+      if (superAdminUpdateError) {
+        console.error('Error adding super admin to organization:', superAdminUpdateError);
+      } else {
+        console.log(`Successfully added super admin ${superAdminEmail} to organization ${newOrg.id}`);
+      }
+    } else {
+      // Create super admin user
+      const { error: superAdminCreateError } = await supabase
+        .from('users')
+        .insert({
+          email: superAdminEmail,
+          organization_id: newOrg.id,
+          is_super_admin: true,
+          is_tenant_admin: true,
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (superAdminCreateError) {
+        console.error('Error creating super admin user:', superAdminCreateError);
+      } else {
+        console.log(`Successfully created super admin user ${superAdminEmail} for organization ${newOrg.id}`);
+      }
+    }
+
+    // Create or update specified tenant admin user for the new organization
+    if (adminEmail && adminEmail !== superAdminEmail) {
       // Check if user exists
       const { data: existingUser } = await supabase
         .from('users')
