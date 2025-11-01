@@ -399,7 +399,8 @@ export default function PowerBIReport({
           },
           navContentPaneEnabled: false, // Hide the top page navigation bar
           background: models.BackgroundType.Default,
-          persistentFiltersEnabled: false,
+          // Use PowerBI's built-in persistent filters - handled by PowerBI, no performance impact
+          persistentFiltersEnabled: true,
         },
       };
 
@@ -414,11 +415,10 @@ export default function PowerBIReport({
         console.log('Report loaded!');
 
         try {
-          // Load saved filters first
-          await loadSavedFilters(report);
-
-          // Setup filter change listener (only on active page, not all pages)
-          setupFilterListener(report);
+          // DISABLED - even active page only is too slow (60+ seconds)
+          // await loadSavedFilters(report);
+          // setupFilterListener(report);
+          console.log('[Filter Persistence] DISABLED - PowerBI API too slow');
 
           // If a specific page was requested, navigate to it
           if (pageName) {
@@ -439,17 +439,17 @@ export default function PowerBIReport({
       report.on('rendered', async () => {
         console.log('Report rendered!');
 
-        // Setup filter persistence on first render
-        if (!(report as any).filterListenerSetup) {
-          try {
-            console.log('[Filter Persistence] Setting up on rendered event');
-            await loadSavedFilters(report);
-            setupFilterListener(report);
-            (report as any).filterListenerSetup = true;
-          } catch (err) {
-            console.error('[Filter Persistence] Setup error:', err);
-          }
-        }
+        // DISABLED - even active page only is too slow (60+ seconds)
+        // if (!(report as any).filterListenerSetup) {
+        //   try {
+        //     console.log('[Filter Persistence] Setting up on rendered event');
+        //     await loadSavedFilters(report);
+        //     setupFilterListener(report);
+        //     (report as any).filterListenerSetup = true;
+        //   } catch (err) {
+        //     console.error('[Filter Persistence] Setup error:', err);
+        //   }
+        // }
 
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
