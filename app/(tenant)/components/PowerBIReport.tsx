@@ -248,10 +248,11 @@ export default function PowerBIReport({
   const setupFilterListener = (report: pbi.Report) => {
     let lastSlicerState: string | null = null;
     let pollCount = 0;
+    let isInitialized = false;
 
-    console.log('[Filter Persistence] Starting slicer state polling every 1 second...');
+    console.log('[Filter Persistence] Starting slicer state polling every 3 seconds...');
 
-    // Poll for slicer changes every 1 second for more responsive detection
+    // Poll for slicer changes every 3 seconds (balance between responsiveness and performance)
     const pollInterval = setInterval(async () => {
       try {
         pollCount++;
@@ -296,6 +297,14 @@ export default function PowerBIReport({
           console.log('[Filter Persistence] Poll check #' + pollCount + ', slicers count:', currentSlicers.length);
         }
 
+        // On first poll, just capture the initial state (after restoration)
+        if (!isInitialized) {
+          lastSlicerState = currentSlicerStr;
+          isInitialized = true;
+          console.log('[Filter Persistence] Initial state captured, monitoring for changes...');
+          return;
+        }
+
         // Only save if slicer state actually changed
         if (currentSlicerStr !== lastSlicerState) {
           if (currentSlicers.length > 0) {
@@ -309,7 +318,7 @@ export default function PowerBIReport({
         // Report might be disposed, stop polling
         clearInterval(pollInterval);
       }
-    }, 1000); // Poll every 1 second instead of 2
+    }, 3000); // Poll every 3 seconds
 
     // Store interval ID for cleanup
     (report as any).filterPollInterval = pollInterval;
@@ -410,23 +419,7 @@ export default function PowerBIReport({
 
           // Add immediate save on data selection (slicer) changes
           report.on('dataSelected', async (event) => {
-            console.log('[Filter Persistence] dataSelected event fired:', event);
-            await saveCurrentFilters(report);
-          });
-
-          // Also listen for buttonClicked which might fire for dropdown slicers
-          report.on('buttonClicked', async (event) => {
-            console.log('[Filter Persistence] buttonClicked event fired:', event);
-            await saveCurrentFilters(report);
-          });
-
-          // Listen for any visual click events
-          report.on('visualClicked', async (event) => {
-            console.log('[Filter Persistence] visualClicked event fired:', event);
-            // Only save if it's a slicer
-            if (event?.detail?.visual?.type === 'slicer') {
-              await saveCurrentFilters(report);
-            }
+            console.log('[Filter Persistence] dataSelected event - will save on next poll');
           });
 
           // If a specific page was requested, navigate to it
