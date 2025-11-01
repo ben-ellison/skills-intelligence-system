@@ -249,9 +249,9 @@ export default function PowerBIReport({
     let lastSlicerState: string | null = null;
     let pollCount = 0;
 
-    console.log('[Filter Persistence] Starting slicer state polling...');
+    console.log('[Filter Persistence] Starting slicer state polling every 1 second...');
 
-    // Poll for slicer changes every 2 seconds
+    // Poll for slicer changes every 1 second for more responsive detection
     const pollInterval = setInterval(async () => {
       try {
         pollCount++;
@@ -309,7 +309,7 @@ export default function PowerBIReport({
         // Report might be disposed, stop polling
         clearInterval(pollInterval);
       }
-    }, 2000);
+    }, 1000); // Poll every 1 second instead of 2
 
     // Store interval ID for cleanup
     (report as any).filterPollInterval = pollInterval;
@@ -409,9 +409,24 @@ export default function PowerBIReport({
           setupFilterListener(report);
 
           // Add immediate save on data selection (slicer) changes
-          report.on('dataSelected', async () => {
-            console.log('[Filter Persistence] Data selected - saving slicers immediately');
+          report.on('dataSelected', async (event) => {
+            console.log('[Filter Persistence] dataSelected event fired:', event);
             await saveCurrentFilters(report);
+          });
+
+          // Also listen for buttonClicked which might fire for dropdown slicers
+          report.on('buttonClicked', async (event) => {
+            console.log('[Filter Persistence] buttonClicked event fired:', event);
+            await saveCurrentFilters(report);
+          });
+
+          // Listen for any visual click events
+          report.on('visualClicked', async (event) => {
+            console.log('[Filter Persistence] visualClicked event fired:', event);
+            // Only save if it's a slicer
+            if (event?.detail?.visual?.type === 'slicer') {
+              await saveCurrentFilters(report);
+            }
           });
 
           // If a specific page was requested, navigate to it
