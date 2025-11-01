@@ -411,16 +411,10 @@ export default function PowerBIReport({
         console.log('Report loaded!');
 
         try {
-          // Load saved filters first
-          await loadSavedFilters(report);
-
-          // Setup filter change listener
-          setupFilterListener(report);
-
-          // Add immediate save on data selection (slicer) changes
-          report.on('dataSelected', async (event) => {
-            console.log('[Filter Persistence] dataSelected event - will save on next poll');
-          });
+          // TEMPORARILY DISABLED - slicer persistence is causing massive load time issues
+          // await loadSavedFilters(report);
+          // setupFilterListener(report);
+          console.log('[Filter Persistence] DISABLED - investigating performance issues');
 
           // If a specific page was requested, navigate to it
           if (pageName) {
@@ -441,17 +435,17 @@ export default function PowerBIReport({
       report.on('rendered', async () => {
         console.log('Report rendered!');
 
-        // Setup filter persistence on first render
-        if (!(report as any).filterListenerSetup) {
-          try {
-            console.log('[Filter Persistence] Setting up on rendered event');
-            await loadSavedFilters(report);
-            setupFilterListener(report);
-            (report as any).filterListenerSetup = true;
-          } catch (err) {
-            console.error('[Filter Persistence] Setup error:', err);
-          }
-        }
+        // TEMPORARILY DISABLED - slicer persistence is causing massive load time issues
+        // if (!(report as any).filterListenerSetup) {
+        //   try {
+        //     console.log('[Filter Persistence] Setting up on rendered event');
+        //     await loadSavedFilters(report);
+        //     setupFilterListener(report);
+        //     (report as any).filterListenerSetup = true;
+        //   } catch (err) {
+        //     console.error('[Filter Persistence] Setup error:', err);
+        //   }
+        // }
 
         // Hide loading overlay once report is fully rendered
         setTimeout(() => {
