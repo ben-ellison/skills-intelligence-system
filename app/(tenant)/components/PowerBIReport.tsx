@@ -118,10 +118,12 @@ export default function PowerBIReport({
     }
   };
 
-  // Load saved slicer state from localStorage - use GLOBAL key for cross-page persistence
+  // Load saved slicer state from localStorage - use TENANT-SCOPED key for cross-page persistence
   const loadSavedFilters = async (report: pbi.Report) => {
     try {
-      const storageKey = 'powerbi_slicers_global';
+      // Get subdomain from URL to scope slicers per tenant
+      const subdomain = window.location.hostname.split('.')[0];
+      const storageKey = `powerbi_slicers_${subdomain}`;
       const savedSlicersStr = localStorage.getItem(storageKey);
 
       if (savedSlicersStr) {
@@ -215,9 +217,11 @@ export default function PowerBIReport({
         }
       }
 
-      const storageKey = 'powerbi_slicers_global';
+      // Get subdomain from URL to scope slicers per tenant
+      const subdomain = window.location.hostname.split('.')[0];
+      const storageKey = `powerbi_slicers_${subdomain}`;
       localStorage.setItem(storageKey, JSON.stringify(slicerStates));
-      console.log('[Filter Persistence] Slicer states saved:', slicerStates);
+      console.log('[Filter Persistence] Slicer states saved for tenant:', subdomain, slicerStates);
     } catch (error) {
       console.error('[Filter Persistence] Error saving slicer states:', error);
     }
