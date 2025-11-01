@@ -408,6 +408,12 @@ export default function PowerBIReport({
           // Setup filter change listener
           setupFilterListener(report);
 
+          // Add immediate save on data selection (slicer) changes
+          report.on('dataSelected', async () => {
+            console.log('[Filter Persistence] Data selected - saving slicers immediately');
+            await saveCurrentFilters(report);
+          });
+
           // If a specific page was requested, navigate to it
           if (pageName) {
             const reportPages = await report.getPages();
