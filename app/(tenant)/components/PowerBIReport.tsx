@@ -118,18 +118,17 @@ export default function PowerBIReport({
     }
   };
 
-  // Load saved slicer state from localStorage - use TENANT-SCOPED and REPORT-SCOPED key
+  // Load saved slicer state from localStorage - use TENANT-SCOPED key for global persistence
   const loadSavedFilters = async (report: pbi.Report) => {
     try {
-      // Get subdomain from URL to scope slicers per tenant
+      // Get subdomain from URL to scope slicers per tenant only
       const subdomain = window.location.hostname.split('.')[0];
-      // Scope by both tenant AND report to prevent cross-report contamination
-      const storageKey = `powerbi_slicers_${subdomain}_${reportId}`;
+      const storageKey = `powerbi_slicers_${subdomain}`;
       const savedSlicersStr = localStorage.getItem(storageKey);
 
       if (savedSlicersStr) {
         const savedSlicers = JSON.parse(savedSlicersStr);
-        console.log('[Filter Persistence] Restoring', savedSlicers.length, 'slicer states for report:', reportId);
+        console.log('[Filter Persistence] Restoring', savedSlicers.length, 'global slicer states');
 
         const restorePromise = (async () => {
           const pages = await report.getPages();
@@ -159,10 +158,15 @@ export default function PowerBIReport({
 
                       // If target field matches, apply saved state
                       if (targetField === savedSlicer.targetField) {
-                        await visual.setSlicerState(savedSlicer.state);
-                        console.log('[Filter Persistence] Restored slicer for field:', targetField);
-                        restored = true;
-                        break;
+                        try {
+                          await visual.setSlicerState(savedSlicer.state);
+                          console.log('[Filter Persistence] ✓ Restored slicer for field:', targetField);
+                          restored = true;
+                          break;
+                        } catch (setErr) {
+                          console.log('[Filter Persistence] Failed to restore slicer for field:', targetField, '- incompatible state');
+                          // Continue to next slicer
+                        }
                       }
                     } catch (err) {
                       // Skip slicers that don't support getSlicerState
@@ -179,9 +183,9 @@ export default function PowerBIReport({
         })();
 
         await restorePromise;
-        console.log('[Filter Persistence] Restoration complete for report:', reportId);
+        console.log('[Filter Persistence] Restoration complete');
       } else {
-        console.log('[Filter Persistence] No saved slicers found for report:', reportId);
+        console.log('[Filter Persistence] No saved slicers found');
       }
     } catch (error) {
       console.error('[Filter Persistence] Error loading slicer states:', error);
@@ -225,14 +229,13 @@ export default function PowerBIReport({
         }
       }
 
-      // Get subdomain from URL to scope slicers per tenant
+      // Get subdomain from URL to scope slicers per tenant only (global across all reports)
       const subdomain = window.location.hostname.split('.')[0];
-      // Scope by both tenant AND report to prevent cross-report contamination
-      const storageKey = `powerbi_slicers_${subdomain}_${reportId}`;
+      const storageKey = `powerbi_slicers_${subdomain}`;
 
       if (slicerStates.length > 0) {
         localStorage.setItem(storageKey, JSON.stringify(slicerStates));
-        console.log(`[Filter Persistence] ✓ Saved ${slicerStates.length} slicer states for report:`, reportId, 'key:', storageKey);
+        console.log(`[Filter Persistence] ✓ Saved ${slicerStates.length} global slicer states, key:`, storageKey);
       } else {
         console.log('[Filter Persistence] No slicer states to save (empty array)');
       }
